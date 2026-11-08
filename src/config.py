@@ -35,6 +35,11 @@ class SceneConfig:
     frame_size: list[int] = field(default_factory=list)  # [largura, altura]
     condition: str = "dia"  # dia | noite | chuva
     counting_line: list[list[int]] | None = None
+    # Nomes dos dois sentidos da linha de contagem: [sentido "in", sentido "out"].
+    # Para uma linha marcada da esquerda para a direita na imagem, "in" é quem
+    # cruza subindo (de baixo para cima) e "out" quem cruza descendo.
+    # Inverter a ordem dos dois cliques inverte os sentidos.
+    direction_names: list[str] = field(default_factory=lambda: ["in", "out"])
     stop_line: list[list[int]] | None = None
     crosswalk_zone: list[list[int]] | None = None
     traffic_light_roi: list[int] | None = None

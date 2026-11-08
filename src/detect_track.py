@@ -78,6 +78,34 @@ def track_video(
         yield FrameResult(index=i, time_s=i / fps, frame=result.orig_img, detections=detections)
 
 
+@dataclass
+class Annotators:
+    box: sv.BoxAnnotator
+    label: sv.LabelAnnotator
+    trace: sv.TraceAnnotator
+    thickness: int
+    text_scale: float
+
+    def draw(self, img: np.ndarray, det: sv.Detections) -> np.ndarray:
+        labels = [f"#{t} {COCO_CLASSES.get(int(c), c)}" for t, c in zip(det.tracker_id, det.class_id)]
+        img = self.trace.annotate(img, det)
+        img = self.box.annotate(img, det)
+        return self.label.annotate(img, det, labels=labels)
+
+
+def make_annotators(video_info: sv.VideoInfo) -> Annotators:
+    """Espessura e fonte proporcionais à resolução (legível de 540p a 4K)."""
+    thickness = sv.calculate_optimal_line_thickness(video_info.resolution_wh)
+    text_scale = sv.calculate_optimal_text_scale(video_info.resolution_wh)
+    return Annotators(
+        box=sv.BoxAnnotator(thickness=thickness),
+        label=sv.LabelAnnotator(text_scale=text_scale, text_thickness=thickness),
+        trace=sv.TraceAnnotator(thickness=thickness, trace_length=40),
+        thickness=thickness,
+        text_scale=text_scale,
+    )
+
+
 def draw_scene(frame: np.ndarray, scene: SceneConfig) -> np.ndarray:
     """Desenha as linhas/zonas configuradas da cena (apenas visualização)."""
     if scene.counting_line:
@@ -118,12 +146,7 @@ def main() -> None:
     device = int(args.device) if args.device.isdigit() else args.device
 
     video_info = sv.VideoInfo.from_video_path(str(source))
-    # Espessura e fonte proporcionais à resolução (legível de 540p a 4K)
-    thickness = sv.calculate_optimal_line_thickness(video_info.resolution_wh)
-    text_scale = sv.calculate_optimal_text_scale(video_info.resolution_wh)
-    box_ann = sv.BoxAnnotator(thickness=thickness)
-    label_ann = sv.LabelAnnotator(text_scale=text_scale, text_thickness=thickness)
-    trace_ann = sv.TraceAnnotator(thickness=thickness, trace_length=40)
+    annotators = make_annotators(video_info)
 
     sink = None if args.no_video else sv.VideoSink(str(out_dir / "annotated.mp4"), video_info)
     csv_file = open(out_dir / "tracks.csv", "w", newline="", encoding="utf-8")
@@ -149,16 +172,10 @@ def main() -> None:
                 ])
 
             if sink or args.show:
-                labels = [
-                    f"#{tid} {COCO_CLASSES.get(int(c), c)}"
-                    for tid, c in zip(det.tracker_id, det.class_id)
-                ]
                 img = fr.frame.copy()
                 if scene:
                     img = draw_scene(img, scene)
-                img = trace_ann.annotate(img, det)
-                img = box_ann.annotate(img, det)
-                img = label_ann.annotate(img, det, labels=labels)
+                img = annotators.draw(img, det)
                 if sink:
                     sink.write_frame(img)
                 if args.show:

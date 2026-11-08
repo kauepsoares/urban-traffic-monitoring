@@ -1,0 +1,12 @@
+# Cena de teste: vídeo de exemplo do supervision (rodovia, 4K, sem semáforo).
+# Serve só para validar o pipeline; não faz parte da avaliação do TCC.
+name: exemplo_vehicles
+video: data/raw/exemplos/vehicles.mp4
+frame_size: [3840, 2160]
+condition: dia
+counting_line: [[0, 1350], [3840, 1350]]
+direction_names: [afastando, aproximando]  # in = sobe na imagem, out = desce
+stop_line: null
+crosswalk_zone: null
+traffic_light_roi: null
+notes: linha horizontal cruzando as duas pistas

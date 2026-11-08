@@ -28,8 +28,28 @@ python -m src.scene_editor --video data/clips/cruzamento.mp4 --out configs/cena_
 python -m src.detect_track --source data/clips/cruzamento.mp4 --config configs/cena_01.yaml
 
 # Comparar tamanhos de modelo (qualidade x FPS)
-python -m src.detect_track --source data/clips/cruzamento.mp4 --model yolo11s.pt --no-video
+python -m src.detect_track --source data/clips/cruzamento.mp4 --model models/yolo11s.pt --no-video
+
+# 3. Contagem de veículos por linha virtual (janelas de 60 s)
+python -m src.count --source data/clips/cruzamento.mp4 --config configs/cena_01.yaml --window 60
 ```
+
+Teste rápido com o vídeo de exemplo (rodovia, sem semáforo):
+
+```powershell
+python -m src.count --source data/raw/exemplos/vehicles.mp4 --config configs/exemplo_vehicles.yaml --window 5
+```
+
+### Contagem (Fase 3)
+
+- Cada ID que cruza a `counting_line` é contado **uma vez**, pelo ponto inferior central da caixa
+  (contato com o chão).
+- Sentidos: para uma linha marcada da esquerda para a direita, `in` = cruza subindo na imagem,
+  `out` = descendo. Os nomes vêm de `direction_names` no YAML da cena.
+- A classe final é a **mais votada** em todos os quadros do ID (o YOLO às vezes alterna
+  carro/caminhão); a classe no instante do cruzamento fica salva em `class_at_crossing`.
+- Saídas: `crossings.csv` (um evento por veículo), `counts_total.csv`, `counts_per_window.csv`,
+  `annotated.mp4` com placar e `run_info.yaml`.
 
 ## Estrutura
 
@@ -43,7 +63,7 @@ src/
   check_env.py     Fase 0: verifica GPU e bibliotecas
   scene_editor.py  Fase 1: marca regiões clicando no vídeo
   detect_track.py  Fase 2: YOLO + ByteTrack -> CSV de trajetórias + vídeo anotado
-  count.py         Fase 3: contagem de veículos (a fazer)
+  count.py         Fase 3: contagem de veículos por classe, sentido e janela de tempo
   traffic_light.py Fase 4: estado do semáforo (a fazer)
   violation.py     Fase 5: avanço de sinal (a fazer)
   evaluate.py      Fase 7: comparação com anotação manual (a fazer)
@@ -56,7 +76,7 @@ outputs/           CSVs e vídeos anotados (não versionados)
 - [x] Fase 0 — Ambiente (PyTorch cu128, GPU) e repositório
 - [ ] Fase 1 — Dados (datasets + configuração das cenas) — ferramenta de marcação pronta
 - [x] Fase 2 — Detecção e rastreamento (falta comparar n/s/m em vídeos reais)
-- [ ] Fase 3 — Contagem de veículos
+- [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
 - [ ] Fase 4 — Estado do semáforo
 - [ ] Fase 5 — Avanço de sinal vermelho
 - [ ] Fase 6 — Contagem de pedestres

@@ -21,6 +21,7 @@ traffic_light_roi:
 - 349
 - 892
 - 378
+light_validity: controla
 reference_frame: 0
 notes: Mesmo cruzamento da cam_7, câmera ~33 px mais alta. Falta marcar stop_line
   e counting_line.

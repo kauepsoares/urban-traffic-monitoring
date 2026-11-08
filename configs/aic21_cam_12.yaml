@@ -21,6 +21,7 @@ traffic_light_roi:
 - 7
 - 1353
 - 50
+light_validity: nao_controla
 reference_frame: 0
 notes: 'Grupo focal da direita (há outro igual em x~1186 e um de seta de conversão).
   Falta marcar counting_line. ATENÇÃO: a fila desta linha vem em direção à câmera

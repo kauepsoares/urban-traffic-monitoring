@@ -21,6 +21,7 @@ traffic_light_roi:
 - 344
 - 893
 - 370
+light_validity: controla
 reference_frame: 0
 notes: Mesmo cruzamento da cam_7, com chuva. Falta marcar counting_line. Linha transposta
   da cam_7 pelo deslocamento da câmera (proposta, conferir).

@@ -49,17 +49,20 @@ do semáforo em 6 instantes de cada vídeo.
 
 Vistos em 6 instantes por vídeo, todos esses semáforos alternam entre vermelho, amarelo e verde.
 
-**A verificar por câmera:** se o grupo focal visível controla de fato os veículos que cruzam a
-linha de retenção marcada. Um semáforo cuja frente aparece para a câmera controla quem anda no
-mesmo sentido que a câmera "olha", ou seja, quem se afasta dela. Também é preciso separar o foco
-principal do foco de conversão à esquerda (cam_11, cam_12, cam_13).
+**Verificado depois (Fase 5):** um semáforo cuja frente aparece para a câmera controla quem se
+afasta dela. Só na cam_7 (dia, amanhecer, chuva) a fila anda em direção ao semáforo visível
+(`light_validity: controla`). Nas cam_10 a cam_13 a fila vem em direção à câmera e o semáforo
+visível é o da outra mão: cam_10 = `substituto`, cam_11 a cam_13 = `nao_controla`. Detalhes e o
+teste empírico em `docs/fase5_infracao.md`.
 
 ## Consequências para o plano
 
 - **Contagem (Fase 3):** pode usar qualquer câmera; cam_5 tem 1 minuto de gabarito para conferir
   o formato. As ROIs e MOIs do dataset podem ser reaproveitadas como referência.
-- **Sinal vermelho (Fases 4 e 5):** cena principal = cam_7 (dia, amanhecer, chuva); cenas
-  secundárias = cam_10 a cam_13. Cumpre o critério de "2 a 3 cruzamentos com semáforo visível".
+- **Sinal vermelho (Fases 4 e 5):** só a cam_7 (dia, amanhecer, chuva) serve para a avaliação,
+  porque é a única em que o semáforo visível controla a fila. Isso dá **1 cruzamento**, abaixo do
+  critério de "2 a 3 cruzamentos com semáforo visível" → reforça o plano B (CARLA) ou a busca de
+  outra fonte de vídeo. A classificação de cor (Fase 4) continua válida nas cam_10 a cam_13.
 - **Noite:** não há. Ou se aceita "amanhecer" como condição de pouca luz, ou se busca outra fonte.
 - **FPS baixo (8–10):** a 50 km/h, um veículo anda ~1,4–1,7 m entre quadros. Isso limita a
   precisão do instante de cruzamento e deve ser discutido no TCC.

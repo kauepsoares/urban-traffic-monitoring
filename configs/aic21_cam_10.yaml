@@ -21,6 +21,7 @@ traffic_light_roi:
 - 150
 - 1870
 - 221
+light_validity: substituto
 reference_frame: 0
 notes: 'Grupo focal da direita; o da esquerda (LEFT TURN SIGNAL) é de conversão. Falta
   marcar counting_line. ATENÇÃO: a fila desta linha vem em direção à câmera e o semáforo

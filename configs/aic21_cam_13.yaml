@@ -21,6 +21,7 @@ traffic_light_roi:
 - 9
 - 1446
 - 73
+light_validity: nao_controla
 reference_frame: 0
 notes: 'Grupo focal central; o da esquerda é de conversão (yield on green). Falta
   marcar counting_line. ATENÇÃO: a fila desta linha vem em direção à câmera e o semáforo

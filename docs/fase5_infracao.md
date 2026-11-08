@@ -9,10 +9,13 @@ python -m src.violation --config configs/aic21_cam_7.yaml --video         # + v�
 python -m src.violation --config configs/aic21_cam_7.yaml --red-grace 0.3 # tolerância de 0,3 s
 ```
 
-A cena precisa de `stop_line` (tecla `r` no `scene_editor`), `traffic_light_roi` e
+A cena precisa de `stop_line` (tecla `r` no `scene_editor`), `traffic_light_roi`,
 `stop_line_direction` (`in` = veículos sobem na imagem para uma linha marcada da esquerda para a
-direita; `out` = descem). `exempt_zone` (opcional) é um polígono onde a conversão no vermelho é
-permitida.
+direita; `out` = descem) e `light_validity` (ver a seção de validade abaixo). `exempt_zone`
+(opcional) é um polígono onde a conversão no vermelho é permitida.
+
+`light_validity: nao_controla` faz o programa se recusar a rodar (só com `--force`, para estudar o
+erro); `substituto` e `nao_verificado` rodam com aviso, e o valor fica gravado em `run_info.yaml`.
 
 ## Regra
 
@@ -55,22 +58,32 @@ como substituto se os dois sentidos abrirem juntos.
 verde (ou amarelo). Grupos de veículos cruzando dezenas de segundos depois do início do vermelho
 indicam que o semáforo não é o daquela linha.
 
-| Cena | Condição | Duração | Cruzamentos | verde | amarelo | vermelho | Semáforo válido? |
+| Cena | Condição | Duração | Cruzamentos | verde | amarelo | vermelho | `light_validity` |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| cam_7 | dia | 30 min | 576 | 567 | 8 | **1** | sim (controla a linha) |
-| cam_7_dawn | amanhecer | 5 min | 63 | 63 | 0 | 0 | sim |
-| cam_7_rain | chuva | 5 min | 49 | 48 | 1 | 0 | sim |
-| cam_10 | dia | 3,5 min | 64 | 63 | 1 | 0 | sim, como substituto (sentidos abrem juntos) |
-| cam_11 | dia | 3,5 min | 54 | 41 | 0 | 13 | **não** (fila cruza 33–48 s após o vermelho) |
-| cam_12 | dia | 3,3 min | 11 | 7 | 0 | 4 | **não** |
-| cam_13 | dia | 3,3 min | 4 | 3 | 0 | 1 | **não** (e quase todos viram, ver abaixo) |
+| cam_7 | dia | 30 min | 576 | 567 | 8 | **1** | `controla` |
+| cam_7_dawn | amanhecer | 5 min | 63 | 63 | 0 | 0 | `controla` |
+| cam_7_rain | chuva | 5 min | 49 | 48 | 1 | 0 | `controla` |
+| cam_10 | dia | 3,5 min | 64 | 63 | 1 | 0 | `substituto` |
+| cam_11 | dia | 3,5 min | 54 | 41 | 0 | 13 | `nao_controla` (fila cruza 33–48 s após o vermelho) |
+| cam_12 | dia | 3,3 min | 11 | 7 | 0 | 4 | `nao_controla` |
+| cam_13 | dia | 3,3 min | 4 | 3 | 0 | 1 | `nao_controla` |
 
-As cam_11, cam_12 e cam_13 ficam **fora** da avaliação de avanço de sinal (servem para contagem).
 Cruzamentos descartados pelos filtros não entram na tabela; `parado_na_linha` também não.
+
+**Decisão de escopo:** a avaliação de avanço de sinal usa **só as cenas `controla`** (cam_7 em
+dia, amanhecer e chuva), em que o semáforo lido é comprovadamente o que a fila obedece.
+
+- **cam_10 (`substituto`):** o resultado (63 de 64 no verde) sugere que os dois sentidos abrem
+  juntos, mas 3,5 min (1–2 ciclos) não garantem isso. Muitos cruzamentos abrem um sentido alguns
+  segundos antes do outro, e é justamente nas trocas de cor que as infrações acontecem. Fica como
+  discussão, não como métrica.
+- **cam_11 a cam_13 (`nao_controla`):** entram no texto como demonstração de que o teste empírico
+  detecta um semáforo errado. Todas as quatro câmeras continuam válidas para a contagem de
+  veículos, que não depende do semáforo.
 
 ## Resultado
 
-Nas 4 cenas válidas (43,5 min de vídeo, 752 cruzamentos), o sistema registrou **1 infração**:
+Nas 3 cenas `controla` (40 min de vídeo, 688 cruzamentos), o sistema registrou **1 infração**:
 
 - **cam_7, 865,4 s, ID 31734:** o carro cruza a linha **0,2 s** depois do início do vermelho,
   conferido quadro a quadro (no quadro 6921 os três grupos focais estão amarelos, em 6922 já estão
@@ -93,9 +106,10 @@ Desempenho: **41–46 FPS** no pipeline completo (RTX 5060), acima dos 8–10 FP
 
 ## Limitações conhecidas
 
-- **Poucos positivos.** Com 1 infração (limite) em 43,5 min, precisão e revocação não podem ser
-  estimadas com segurança. Próximos passos: anotar manualmente os cruzamentos no vermelho (Fase 7)
-  e gerar casos de avanço no CARLA (plano B) para medir a revocação.
+- **Poucos positivos.** Com 1 infração (limite) em 40 min de cenas válidas, precisão e revocação
+  não podem ser estimadas com segurança, e só há um cruzamento físico (cam_7). Próximos passos:
+  anotar manualmente os cruzamentos no vermelho (Fase 7), gerar casos de avanço no CARLA (plano B)
+  para medir a revocação e procurar outra fonte de vídeo em que o semáforo da própria faixa apareça.
 - **Faixa de conversão à esquerda.** A linha da cam_7 cobre também a faixa da esquerda, cujos
   veículos obedecem ao grupo focal de conversão (à esquerda, x≈795), não ao da via principal. Os 9
   cruzamentos `trajetoria_incompativel` da cam_7 são todos nessa faixa (viram à esquerda logo após a
@@ -108,6 +122,7 @@ Desempenho: **41–46 FPS** no pipeline completo (RTX 5060), acima dos 8–10 FP
   seguidos (gravação a 8 FPS com quadros fora de ordem/repetidos), o que limita a precisão temporal
   a cerca de ±1 quadro (±0,125 s).
 - **Linhas propostas:** as linhas da cam_7_rain (transposta da cam_7) e das cam_10 a cam_13 foram
-  propostas a partir dos quadros e precisam ser conferidas no `scene_editor`.
+  propostas a partir dos quadros e precisam ser conferidas no `scene_editor`; a da cam_7_rain é a
+  que importa para a avaliação.
 - O desfoque de placa é heurístico (faixa central no terço inferior da caixa); os vídeos do AIC21
   já vêm com placas e rostos borrados.

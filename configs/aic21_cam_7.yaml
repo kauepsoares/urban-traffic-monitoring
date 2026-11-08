@@ -13,12 +13,15 @@ stop_line:
   - 580
 - - 962
   - 589
+stop_line_direction: in
+exempt_zone: null
 crosswalk_zone: null
 traffic_light_roi:
 - 879
 - 382
 - 892
 - 410
+light_validity: controla
 reference_frame: 0
 notes: Grupo focal à esquerda (x~795) é de conversão à esquerda. A câmera balança
   ~13 px na vertical; o semáforo é reencontrado por template a cada quadro. Falta

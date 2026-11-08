@@ -65,6 +65,11 @@ suavização compensado, linha acompanhando o balanço da câmera). Quem para so
 contado até avançar. Gera `crossings.csv`, `violations.csv` e uma imagem de evidência por infração
 (3 quadros, pessoas e placas desfocadas). Detalhes em [docs/fase5_infracao.md](docs/fase5_infracao.md).
 
+**Atenção:** o semáforo marcado precisa ser o que a fila obedece. Um semáforo cuja frente aparece
+na imagem controla quem se afasta da câmera; se a fila vem em direção à câmera, o semáforo dela
+está fora da imagem. Cada cena declara isso em `light_validity` (`controla`, `substituto`,
+`nao_controla`, `nao_verificado`); cenas `nao_controla` são recusadas.
+
 ### Contagem (Fase 3)
 
 - Cada ID que cruza a `counting_line` é contado **uma vez**, pelo ponto inferior central da caixa
@@ -104,7 +109,7 @@ outputs/           CSVs e vídeos anotados (não versionados)
 - [x] Fase 2 — Detecção e rastreamento (falta comparar n/s/m em vídeos reais)
 - [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
 - [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (falta gabarito e a versão 2 treinada)
-- [x] Fase 5 — Avanço de sinal vermelho (4 cenas válidas, 43,5 min: 1 infração limite; cam_11–13 descartadas; falta gabarito)
+- [x] Fase 5 — Avanço de sinal vermelho (avaliação só na cam_7 dia/amanhecer/chuva, 40 min: 1 infração limite; falta gabarito e mais positivos)
 - [ ] Fase 6 — Contagem de pedestres
 - [ ] Fase 7 — Avaliação
 - [ ] Fase 8 — Escrita e defesa

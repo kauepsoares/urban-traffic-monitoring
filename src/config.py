@@ -52,6 +52,17 @@ class SceneConfig:
     # Caixa justa em volta do grupo focal (a "caixa preta" com as 3 lâmpadas),
     # marcada no quadro `reference_frame` do vídeo.
     traffic_light_roi: list[int] | None = None
+    # O semáforo marcado controla os veículos da stop_line?
+    #   "controla"       - a fila anda em direção ao semáforo visível (válido)
+    #   "substituto"     - é o semáforo da outra mão; os dados indicam que os dois
+    #                      sentidos abrem juntos, mas não há garantia (usar só como
+    #                      discussão, não na avaliação principal)
+    #   "nao_controla"   - semáforo de outra fase; a detecção de infração não vale
+    #   "nao_verificado" - ainda não conferido
+    # Regra prática: um semáforo cuja frente aparece na imagem controla quem se
+    # afasta da câmera. Se a fila vem em direção à câmera, o semáforo dela está
+    # fora da imagem.
+    light_validity: str = "nao_verificado"
     # Quadro em que as regiões foram marcadas (usado como referência para
     # compensar o balanço da câmera no semáforo).
     reference_frame: int = 0

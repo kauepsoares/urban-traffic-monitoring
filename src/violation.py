@@ -398,11 +398,24 @@ def main() -> None:
                     help="tolerância (s) após o início do vermelho antes de contar infração")
     ap.add_argument("--max-frames", type=int, default=None)
     ap.add_argument("--video", action="store_true", help="grava vídeo anotado")
+    ap.add_argument("--force", action="store_true",
+                    help="roda mesmo se a cena estiver marcada como light_validity: nao_controla")
     args = ap.parse_args()
 
     scene = SceneConfig.load(args.config)
     if not scene.stop_line:
         raise SystemExit(f"A cena '{scene.name}' não tem stop_line. Use src.scene_editor (tecla r).")
+    validity = scene.light_validity
+    if validity == "nao_controla" and not args.force:
+        raise SystemExit(
+            f"A cena '{scene.name}' está marcada com light_validity: nao_controla - o semáforo lido não "
+            "controla a linha de retenção, então as 'infrações' não teriam significado.\n"
+            "Use --force só para estudar o erro (ex.: o teste de validade do semáforo).")
+    if validity != "controla":
+        print(f"AVISO: light_validity = {validity}. " + {
+            "substituto": "O semáforo lido é o da outra mão; os resultados não entram na avaliação principal.",
+            "nao_controla": "Rodando com --force: resultados apenas para estudo do erro.",
+        }.get(validity, "Confira se o semáforo marcado controla a fila desta linha (ver docs/fase5_infracao.md)."))
     source = Path(args.source or scene.video)
     info = sv.VideoInfo.from_video_path(str(source))
     fps = info.fps or 10
@@ -480,7 +493,8 @@ def main() -> None:
 
     summary = df["verdict"].value_counts().to_dict()
     run = {
-        "source": str(source), "config": args.config, "model": args.model, "imgsz": args.imgsz,
+        "source": str(source), "config": args.config, "light_validity": validity,
+        "model": args.model, "imgsz": args.imgsz,
         "frames": n, "seconds": round(elapsed, 1), "fps": round(n / elapsed, 1) if elapsed else 0,
         "decide_after_s": args.decide_after, "red_grace_s": args.red_grace, "crossings": len(df),
         "verdicts": {k: int(v) for k, v in summary.items()},

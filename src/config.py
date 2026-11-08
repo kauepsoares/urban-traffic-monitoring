@@ -42,7 +42,12 @@ class SceneConfig:
     direction_names: list[str] = field(default_factory=lambda: ["in", "out"])
     stop_line: list[list[int]] | None = None
     crosswalk_zone: list[list[int]] | None = None
+    # Caixa justa em volta do grupo focal (a "caixa preta" com as 3 lâmpadas),
+    # marcada no quadro `reference_frame` do vídeo.
     traffic_light_roi: list[int] | None = None
+    # Quadro em que as regiões foram marcadas (usado como referência para
+    # compensar o balanço da câmera no semáforo).
+    reference_frame: int = 0
     notes: str = ""
 
     @classmethod

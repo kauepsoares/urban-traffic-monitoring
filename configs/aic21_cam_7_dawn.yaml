@@ -1,0 +1,20 @@
+name: aic21_cam_7_dawn
+video: data/raw/AIC21_Track1_Vehicle_Counting/Dataset_A/cam_7_dawn.mp4
+frame_size:
+- 1280
+- 960
+condition: amanhecer
+counting_line: null
+direction_names:
+- in
+- out
+stop_line: null
+crosswalk_zone: null
+traffic_light_roi:
+- 880
+- 349
+- 892
+- 378
+reference_frame: 0
+notes: Mesmo cruzamento da cam_7, câmera ~33 px mais alta. Falta marcar stop_line
+  e counting_line.

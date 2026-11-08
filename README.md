@@ -40,6 +40,18 @@ Teste rápido com o vídeo de exemplo (rodovia, sem semáforo):
 python -m src.count --source data/raw/exemplos/vehicles.mp4 --config configs/exemplo_vehicles.yaml --window 5
 ```
 
+### Semáforo (Fase 4)
+
+```powershell
+# Estado do semáforo por quadro (não usa YOLO; 30 min de vídeo em ~45 s)
+python -m src.traffic_light --config configs/aic21_cam_7.yaml
+```
+
+Compensa o balanço da câmera por correlação de template, decide a cor pela contagem de pixels
+coloridos em HSV e suaviza no tempo respeitando o ciclo verde → amarelo → vermelho.
+Gera `states.csv`, `phases.csv`, `timeline.png` e `samples.jpg`. Método, tentativas descartadas
+e resultados em [docs/fase4_semaforo.md](docs/fase4_semaforo.md).
+
 ### Contagem (Fase 3)
 
 - Cada ID que cruza a `counting_line` é contado **uma vez**, pelo ponto inferior central da caixa
@@ -64,9 +76,10 @@ src/
   scene_editor.py  Fase 1: marca regiões clicando no vídeo
   detect_track.py  Fase 2: YOLO + ByteTrack -> CSV de trajetórias + vídeo anotado
   count.py         Fase 3: contagem de veículos por classe, sentido e janela de tempo
-  traffic_light.py Fase 4: estado do semáforo (a fazer)
+  traffic_light.py Fase 4: estado do semáforo por quadro (HSV + suavização)
   violation.py     Fase 5: avanço de sinal (a fazer)
   evaluate.py      Fase 7: comparação com anotação manual (a fazer)
+docs/              levantamento dos dados e notas de método por fase
 notebooks/         testes e gráficos
 outputs/           CSVs e vídeos anotados (não versionados)
 ```
@@ -77,7 +90,7 @@ outputs/           CSVs e vídeos anotados (não versionados)
 - [ ] Fase 1 — Dados (datasets + configuração das cenas) — ferramenta de marcação pronta
 - [x] Fase 2 — Detecção e rastreamento (falta comparar n/s/m em vídeos reais)
 - [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
-- [ ] Fase 4 — Estado do semáforo
+- [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (falta gabarito e a versão 2 treinada)
 - [ ] Fase 5 — Avanço de sinal vermelho
 - [ ] Fase 6 — Contagem de pedestres
 - [ ] Fase 7 — Avaliação

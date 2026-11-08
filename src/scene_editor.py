@@ -4,7 +4,8 @@ Abre um quadro do vídeo e permite marcar:
     [c] linha de contagem     (2 cliques)
     [r] linha de retenção     (2 cliques)
     [f] zona da faixa         (vários cliques, ENTER fecha o polígono)
-    [t] região do semáforo    (2 cliques: cantos opostos)
+    [t] região do semáforo    (2 cliques: cantos opostos da caixa preta do grupo
+                               focal, bem justa; as 3 lâmpadas na vertical)
 Outras teclas:
     [u] desfaz o último ponto    [x] apaga a região do modo atual
     [n]/[p] avança/volta 30 quadros    [s] salva o YAML    [q]/ESC sai
@@ -54,6 +55,8 @@ class Editor:
             ),
         }
         self.mode = ord("c")
+        if out.exists() and frame_idx == 0:
+            frame_idx = self.scene.reference_frame  # reabre no quadro em que foi marcado
         self.frame_idx = frame_idx
         self.frame = self._read(frame_idx)
 
@@ -112,6 +115,7 @@ class Editor:
             self.scene.traffic_light_roi = [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)]
         else:
             self.scene.traffic_light_roi = None
+        self.scene.reference_frame = self.frame_idx
         self.scene.save(self.out)
         print(f"Salvo em {self.out}")
 

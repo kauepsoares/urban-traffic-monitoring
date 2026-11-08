@@ -1,0 +1,20 @@
+name: aic21_cam_12
+video: data/raw/AIC21_Track1_Vehicle_Counting/Dataset_A/cam_12.mp4
+frame_size:
+- 1920
+- 1080
+condition: dia
+counting_line: null
+direction_names:
+- in
+- out
+stop_line: null
+crosswalk_zone: null
+traffic_light_roi:
+- 1331
+- 7
+- 1353
+- 50
+reference_frame: 0
+notes: Grupo focal da direita (há outro igual em x~1186 e um de seta de conversão).
+  Falta marcar stop_line e counting_line.

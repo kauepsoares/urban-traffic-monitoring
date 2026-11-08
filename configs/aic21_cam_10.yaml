@@ -1,0 +1,20 @@
+name: aic21_cam_10
+video: data/raw/AIC21_Track1_Vehicle_Counting/Dataset_A/cam_10.mp4
+frame_size:
+- 1920
+- 1080
+condition: dia
+counting_line: null
+direction_names:
+- in
+- out
+stop_line: null
+crosswalk_zone: null
+traffic_light_roi:
+- 1837
+- 150
+- 1870
+- 221
+reference_frame: 0
+notes: Grupo focal da direita; o da esquerda (LEFT TURN SIGNAL) é de conversão. Falta
+  marcar stop_line e counting_line.

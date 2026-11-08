@@ -7,7 +7,18 @@ Junta o rastreamento (YOLO + ByteTrack) com o estado do semáforo (Fase 4):
    de retenção (`stop_line`) no sentido de entrada do cruzamento
    (`stop_line_direction`) dentro do segmento marcado. O instante do
    cruzamento é interpolado entre os dois quadros (a 8-10 FPS um carro anda
-   ~1,5 m entre quadros).
+   ~1,5 m entre quadros). Dois filtros descartam cruzamentos falsos:
+     - pulo maior que a altura da caixa entre quadros seguidos (troca de ID
+       do rastreador: o ID de um carro parado passa para outro que passava);
+     - movimento quase paralelo à linha (ângulo > 60° com a normal), típico
+       de quem atravessa pela rua transversal na ponta da linha;
+     - trajetória depois da linha: ~1 s após o cruzamento o veículo precisa
+       estar andando para dentro do cruzamento (até 60° da normal). Pega a
+       troca de ID após uma lacuna: o ByteTrack guarda o ID de um veículo
+       perdido por ~30 quadros e pode entregá-lo a outro que passa pela
+       transversal; a "trajetória" resultante segue paralela à linha.
+       (Descartar toda lacuna > 0,5 s também resolve, mas na cam_7 eliminou
+       9% dos cruzamentos reais, de veículos encobertos por galhos e poste.)
 2. Balanço da câmera: o deslocamento medido no semáforo a cada quadro é
    aplicado também à linha de retenção.
 3. Estado do sinal no cruzamento: a votação temporal da Fase 4 atrasa a troca
@@ -77,6 +88,8 @@ class Candidate:
     max_travel: float = 0.0    # maior avanço além da linha (px)
     travel_frame: int | None = None  # quadro em que o avanço mínimo foi atingido
     last_seen: int = 0
+    last_point: tuple[float, float] | None = None
+    post_ok: bool | None = None  # trajetória ~1 s depois aponta para dentro do cruzamento?
     entered_exempt: bool = False
 
 
@@ -149,6 +162,10 @@ class ViolationDetector:
     min_travel_frac: float = 0.3     # avanço mínimo além da linha, em alturas de caixa
     min_travel_px: float = 6.0
     segment_margin: float = 0.05     # tolerância nas pontas do segmento (fração do comprimento)
+    post_check_s: float = 1.0        # quando conferir a trajetória depois da linha
+    max_step_frac: float = 1.0       # deslocamento máx. por quadro, em alturas de caixa
+    min_cos_normal: float = 0.5      # cos do ângulo entre o movimento e a normal da linha (60°)
+    rejected: Counter = field(default_factory=Counter)  # cruzamentos descartados por filtro
     timeline: LightTimeline = field(init=False)
     prev: dict[int, tuple[int, np.ndarray]] = field(default_factory=dict)
     class_votes: dict[int, Counter] = field(default_factory=lambda: defaultdict(Counter))
@@ -159,6 +176,7 @@ class ViolationDetector:
     def __post_init__(self) -> None:
         self.timeline = LightTimeline(self.lag, self.fps)
         self._sign = 1.0 if self.direction == "in" else -1.0
+        self._last_offset = (0, 0)
 
     def line_at(self, offset: tuple[int, int]) -> np.ndarray:
         return self.stop_line + np.array(offset, dtype=float)
@@ -172,6 +190,7 @@ class ViolationDetector:
                raw_state: str, state: str) -> list[dict]:
         """Processa um quadro; devolve as decisões tomadas neste quadro."""
         self.timeline.add(frame, raw_state, state)
+        self._last_offset = offset
         a, b = self.line_at(offset)
         ab = b - a
         zone = None if self.exempt_zone is None else self.exempt_zone + np.array(offset, dtype=float)
@@ -186,6 +205,9 @@ class ViolationDetector:
                 if c.travel_frame is None and c.max_travel >= c.travel_needed:
                     c.travel_frame = frame
                 c.last_seen = frame
+                c.last_point = (float(p[0]), float(p[1]))
+                if c.post_ok is None and frame - c.frame >= self.post_check_s * self.fps:
+                    c.post_ok = self._post_direction_ok(c, a, b)
                 if zone is not None and cv2.pointPolygonTest(zone.astype(np.float32), tuple(p), False) >= 0:
                     c.entered_exempt = True
             elif tid not in self.decided_ids and tid in self.prev:
@@ -195,12 +217,23 @@ class ViolationDetector:
                     alpha = -d0 / (d1 - d0)
                     x = pp + (p - pp) * alpha
                     t = float(np.dot(x - a, ab) / (np.dot(ab, ab) + 1e-9))
-                    if -self.segment_margin <= t <= 1 + self.segment_margin:
-                        need = max(self.min_travel_px, self.min_travel_frac * float(xyxy[3] - xyxy[1]))
+                    move = p - pp
+                    step = float(np.linalg.norm(move)) / max(1, frame - pf)
+                    cos_n = (d1 - d0) / (float(np.linalg.norm(move)) + 1e-9)
+                    box_h = float(xyxy[3] - xyxy[1])
+                    if not (-self.segment_margin <= t <= 1 + self.segment_margin):
+                        pass  # fora do segmento marcado
+                    elif step > max(20.0, self.max_step_frac * box_h):
+                        self.rejected["pulo_de_id"] += 1
+                    elif cos_n < self.min_cos_normal:
+                        self.rejected["movimento_transversal"] += 1
+                    else:
+                        need = max(self.min_travel_px, self.min_travel_frac * box_h)
                         self.pending[tid] = Candidate(
                             track_id=tid, frame=frame, frame_float=pf + (frame - pf) * alpha,
                             point=(float(x[0]), float(x[1])), travel_needed=need,
-                            max_travel=d1, travel_frame=frame if d1 >= need else None, last_seen=frame)
+                            max_travel=d1, travel_frame=frame if d1 >= need else None, last_seen=frame,
+                            last_point=(float(p[0]), float(p[1])))
             self.prev[tid] = (frame, p)
 
         decided = []
@@ -217,6 +250,16 @@ class ViolationDetector:
         self.timeline.prune(frame - int(300 * self.fps))
         return decided
 
+    def _post_direction_ok(self, c: Candidate, a: np.ndarray, b: np.ndarray) -> bool | None:
+        """O deslocamento desde o ponto de cruzamento aponta para dentro do cruzamento?"""
+        if c.last_point is None:
+            return None
+        v = np.array(c.last_point) - np.array(c.point)
+        dist = float(np.linalg.norm(v))
+        if dist < max(4.0, 0.25 * c.travel_needed):  # quase parado: decide pelo avanço
+            return None
+        return bool(self._beyond(a, b, np.array(c.last_point)) / dist >= self.min_cos_normal)
+
     def _decide(self, c: Candidate, now: int) -> dict:
         horizon = int(round(self.decide_after_s * self.fps))
         waited_on_line = c.travel_frame is not None and c.travel_frame - c.frame > horizon
@@ -226,7 +269,12 @@ class ViolationDetector:
         state = self.timeline.state_at(cross_frame)
         start = self.timeline.phase_start(cross_frame)
         since = (t_frame - (start - 0.5)) / self.fps  # início da fase ~ meio do quadro
-        if c.travel_frame is None:
+        if c.post_ok is None and c.travel_frame is not None:  # decidido antes de 1 s
+            a, b = self.line_at(self._last_offset)
+            c.post_ok = self._post_direction_ok(c, a, b)
+        if c.post_ok is False:
+            verdict = "trajetoria_incompativel"
+        elif c.travel_frame is None:
             verdict = "parado_na_linha"
         elif c.entered_exempt and state == RED:
             verdict = "conversao_permitida"
@@ -377,7 +425,8 @@ def main() -> None:
         old.unlink()
     ann = make_annotators(info)
     sink = sv.VideoSink(str(out_dir / "annotated.mp4"), info) if args.video else None
-    buffer: deque[BufferedFrame] = deque(maxlen=int(np.ceil((args.decide_after + 1.5) * fps)) + 4)
+    # cobre o atraso da decisão (até decide_after + 1 s de ID perdido) mais 0,5 s antes do cruzamento
+    buffer: deque[BufferedFrame] = deque(maxlen=int(np.ceil((args.decide_after + 4.0) * fps)))
     light_rows = []
     violators: set[int] = set()
 
@@ -435,12 +484,15 @@ def main() -> None:
         "frames": n, "seconds": round(elapsed, 1), "fps": round(n / elapsed, 1) if elapsed else 0,
         "decide_after_s": args.decide_after, "red_grace_s": args.red_grace, "crossings": len(df),
         "verdicts": {k: int(v) for k, v in summary.items()},
+        "rejected_crossings": dict(detector.rejected),
     }
     (out_dir / "run_info.yaml").write_text(yaml.safe_dump(run, sort_keys=False, allow_unicode=True),
                                            encoding="utf-8")
     print(f"\n{n} quadros em {elapsed:.0f}s -> {run['fps']} FPS (YOLO + rastreamento + semáforo)")
     print(f"{len(df)} cruzamentos da linha de retenção: " +
           ", ".join(f"{k}={v}" for k, v in summary.items()))
+    if detector.rejected:
+        print("descartados: " + ", ".join(f"{k}={v}" for k, v in detector.rejected.items()))
     print(f"Saída em {out_dir}")
 
 

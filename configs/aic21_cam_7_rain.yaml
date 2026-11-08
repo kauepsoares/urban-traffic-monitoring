@@ -8,7 +8,13 @@ counting_line: null
 direction_names:
 - in
 - out
-stop_line: null
+stop_line:
+- - 723
+  - 542
+- - 964
+  - 551
+stop_line_direction: in
+exempt_zone: null
 crosswalk_zone: null
 traffic_light_roi:
 - 881
@@ -16,4 +22,5 @@ traffic_light_roi:
 - 893
 - 370
 reference_frame: 0
-notes: Mesmo cruzamento da cam_7, com chuva. Falta marcar stop_line e counting_line.
+notes: Mesmo cruzamento da cam_7, com chuva. Falta marcar counting_line. Linha transposta
+  da cam_7 pelo deslocamento da câmera (proposta, conferir).

@@ -104,7 +104,7 @@ outputs/           CSVs e vídeos anotados (não versionados)
 - [x] Fase 2 — Detecção e rastreamento (falta comparar n/s/m em vídeos reais)
 - [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
 - [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (falta gabarito e a versão 2 treinada)
-- [x] Fase 5 — Avanço de sinal vermelho (cam_7: 1 infração limite em 30 min; falta gabarito e as outras cenas)
+- [x] Fase 5 — Avanço de sinal vermelho (4 cenas válidas, 43,5 min: 1 infração limite; cam_11–13 descartadas; falta gabarito)
 - [ ] Fase 6 — Contagem de pedestres
 - [ ] Fase 7 — Avaliação
 - [ ] Fase 8 — Escrita e defesa

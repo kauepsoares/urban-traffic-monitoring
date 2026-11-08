@@ -8,7 +8,13 @@ counting_line: null
 direction_names:
 - in
 - out
-stop_line: null
+stop_line:
+- - 546
+  - 408
+- - 1188
+  - 374
+stop_line_direction: out
+exempt_zone: null
 crosswalk_zone: null
 traffic_light_roi:
 - 1417
@@ -16,5 +22,8 @@ traffic_light_roi:
 - 1446
 - 73
 reference_frame: 0
-notes: Grupo focal central; o da esquerda é de conversão (yield on green). Falta marcar
-  stop_line e counting_line.
+notes: 'Grupo focal central; o da esquerda é de conversão (yield on green). Falta
+  marcar counting_line. ATENÇÃO: a fila desta linha vem em direção à câmera e o semáforo
+  visível fica do outro lado do cruzamento (controla o sentido oposto). Ele só vale
+  como substituto se os dois sentidos abrirem juntos; verificar pela distribuição
+  de cores nos cruzamentos.'

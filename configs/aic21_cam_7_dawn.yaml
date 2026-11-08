@@ -8,7 +8,13 @@ counting_line: null
 direction_names:
 - in
 - out
-stop_line: null
+stop_line:
+- - 720
+  - 552
+- - 1026
+  - 578
+stop_line_direction: in
+exempt_zone: null
 crosswalk_zone: null
 traffic_light_roi:
 - 880

@@ -119,6 +119,16 @@ class TrafficLightClassifier:
             self._offset = (nx, ny)
         return self._shifted(), float(score)
 
+    @property
+    def offset(self) -> tuple[int, int]:
+        """Deslocamento atual da câmera em relação ao quadro de referência (px)."""
+        return self._offset
+
+    @property
+    def lag(self) -> int:
+        """Atraso aproximado (quadros) introduzido pela votação temporal."""
+        return self.smooth // 2
+
     def _shifted(self) -> tuple[int, int, int, int]:
         dx, dy = self._offset
         x1, y1, x2, y2 = self.roi

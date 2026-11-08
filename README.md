@@ -52,6 +52,19 @@ coloridos em HSV e suaviza no tempo respeitando o ciclo verde → amarelo → ve
 Gera `states.csv`, `phases.csv`, `timeline.png` e `samples.jpg`. Método, tentativas descartadas
 e resultados em [docs/fase4_semaforo.md](docs/fase4_semaforo.md).
 
+### Avanço de sinal vermelho (Fase 5)
+
+```powershell
+# YOLO + ByteTrack + semáforo; precisa de stop_line e traffic_light_roi na cena
+python -m src.violation --config configs/aic21_cam_7.yaml            # --video para o vídeo anotado
+```
+
+Um veículo comete infração quando o ponto inferior central da caixa cruza a linha de retenção,
+no sentido de entrada, com o sinal vermelho (instante interpolado entre quadros, atraso da
+suavização compensado, linha acompanhando o balanço da câmera). Quem para sobre a linha não é
+contado até avançar. Gera `crossings.csv`, `violations.csv` e uma imagem de evidência por infração
+(3 quadros, pessoas e placas desfocadas). Detalhes em [docs/fase5_infracao.md](docs/fase5_infracao.md).
+
 ### Contagem (Fase 3)
 
 - Cada ID que cruza a `counting_line` é contado **uma vez**, pelo ponto inferior central da caixa
@@ -77,7 +90,7 @@ src/
   detect_track.py  Fase 2: YOLO + ByteTrack -> CSV de trajetórias + vídeo anotado
   count.py         Fase 3: contagem de veículos por classe, sentido e janela de tempo
   traffic_light.py Fase 4: estado do semáforo por quadro (HSV + suavização)
-  violation.py     Fase 5: avanço de sinal (a fazer)
+  violation.py     Fase 5: avanço de sinal vermelho + evidências
   evaluate.py      Fase 7: comparação com anotação manual (a fazer)
 docs/              levantamento dos dados e notas de método por fase
 notebooks/         testes e gráficos
@@ -91,7 +104,7 @@ outputs/           CSVs e vídeos anotados (não versionados)
 - [x] Fase 2 — Detecção e rastreamento (falta comparar n/s/m em vídeos reais)
 - [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
 - [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (falta gabarito e a versão 2 treinada)
-- [ ] Fase 5 — Avanço de sinal vermelho
+- [x] Fase 5 — Avanço de sinal vermelho (cam_7: 1 infração limite em 30 min; falta gabarito e as outras cenas)
 - [ ] Fase 6 — Contagem de pedestres
 - [ ] Fase 7 — Avaliação
 - [ ] Fase 8 — Escrita e defesa

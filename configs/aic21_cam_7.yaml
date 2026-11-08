@@ -1,16 +1,25 @@
-# AIC21 Track 1 — cam_7 (avenida com cruzamento semaforizado), dia.
-# Grupo focal da via principal (à direita do canteiro), quadro 0.
 name: aic21_cam_7
 video: data/raw/AIC21_Track1_Vehicle_Counting/Dataset_A/cam_7.mp4
-frame_size: [1280, 960]
+frame_size:
+- 1280
+- 960
 condition: dia
 counting_line: null
-direction_names: [in, out]
-stop_line: null
+direction_names:
+- in
+- out
+stop_line:
+- - 721
+  - 580
+- - 962
+  - 589
 crosswalk_zone: null
-traffic_light_roi: [879, 382, 892, 410]
+traffic_light_roi:
+- 879
+- 382
+- 892
+- 410
 reference_frame: 0
-notes: >-
-  Grupo focal à esquerda (x~795) é de conversão à esquerda. A câmera balança
-  ~13 px na vertical; o semáforo é reencontrado por template a cada quadro.
-  Falta marcar stop_line e counting_line (src.scene_editor).
+notes: Grupo focal à esquerda (x~795) é de conversão à esquerda. A câmera balança
+  ~13 px na vertical; o semáforo é reencontrado por template a cada quadro. Falta
+  marcar stop_line e counting_line (src.scene_editor).

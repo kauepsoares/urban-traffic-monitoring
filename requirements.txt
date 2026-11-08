@@ -1,0 +1,10 @@
+# PyTorch precisa vir do índice cu128 para reconhecer a RTX 5060 (Blackwell, sm_120):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+# Depois:
+#   pip install -r requirements.txt
+ultralytics>=8.3
+supervision>=0.25
+opencv-python>=4.10
+pyyaml>=6.0
+pandas>=2.2
+lap>=0.5

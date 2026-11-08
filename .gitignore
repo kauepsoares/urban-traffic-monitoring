@@ -1,0 +1,22 @@
+# Ambiente
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Dados e saídas (pesados / sujeitos a licença dos datasets)
+data/raw/*
+data/clips/*
+data/annotations/*
+outputs/*
+models/*
+!**/.gitkeep
+
+# Pesos de modelos baixados pelo Ultralytics
+*.pt
+*.onnx
+*.engine
+
+# Sistema
+.DS_Store
+Thumbs.db

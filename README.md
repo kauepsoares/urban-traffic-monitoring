@@ -70,6 +70,20 @@ na imagem controla quem se afasta da câmera; se a fila vem em direção à câm
 está fora da imagem. Cada cena declara isso em `light_validity` (`controla`, `substituto`,
 `nao_controla`, `nao_verificado`); cenas `nao_controla` são recusadas.
 
+### Avaliação (Fase 7)
+
+```powershell
+# 1. Gabarito por eventos: tecla no instante de cada troca de cor / cruzamento
+python -m src.annotate --config configs/aic21_cam_7.yaml --task semaforo
+python -m src.annotate --config configs/aic21_cam_7.yaml --task retencao `
+    --light-gt data/annotations/aic21_cam_7/semaforo.yaml --skip-green
+
+# 2. Métricas (semaforo | contagem | infracao)
+python -m src.evaluate semaforo --gt data/annotations/aic21_cam_7/semaforo.yaml --pred outputs/cam_7_semaforo/states.csv
+```
+
+Protocolo de anotação e métricas em [docs/fase7_avaliacao.md](docs/fase7_avaliacao.md).
+
 ### Contagem (Fase 3)
 
 - Cada ID que cruza a `counting_line` é contado **uma vez**, pelo ponto inferior central da caixa
@@ -86,7 +100,7 @@ está fora da imagem. Cada cena declara isso em `light_validity` (`controla`, `s
 ```
 data/raw/          vídeos originais dos datasets (não versionados)
 data/clips/        trechos selecionados para o TCC
-data/annotations/  gabarito manual (CVAT)
+data/annotations/  gabarito manual por eventos (src.annotate; versionado)
 configs/           cena_XX.yaml: linhas, zonas e região do semáforo de cada vídeo
 src/
   config.py        formato das cenas e classes usadas
@@ -96,7 +110,8 @@ src/
   count.py         Fase 3: contagem de veículos por classe, sentido e janela de tempo
   traffic_light.py Fase 4: estado do semáforo por quadro (HSV + suavização)
   violation.py     Fase 5: avanço de sinal vermelho + evidências
-  evaluate.py      Fase 7: comparação com anotação manual (a fazer)
+  annotate.py      Fase 7: anotação do gabarito (eventos com instante)
+  evaluate.py      Fase 7: métricas contra o gabarito
 docs/              levantamento dos dados e notas de método por fase
 notebooks/         testes e gráficos
 outputs/           CSVs e vídeos anotados (não versionados)
@@ -111,7 +126,7 @@ outputs/           CSVs e vídeos anotados (não versionados)
 - [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (falta gabarito e a versão 2 treinada)
 - [x] Fase 5 — Avanço de sinal vermelho (avaliação só na cam_7 dia/amanhecer/chuva, 40 min: 1 infração limite; falta gabarito e mais positivos)
 - [ ] Fase 6 — Contagem de pedestres
-- [ ] Fase 7 — Avaliação
+- [ ] Fase 7 — Avaliação (ferramentas prontas; falta anotar o gabarito e rodar)
 - [ ] Fase 8 — Escrita e defesa
 
 ## Privacidade

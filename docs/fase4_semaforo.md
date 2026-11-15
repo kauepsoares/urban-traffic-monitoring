@@ -60,7 +60,8 @@ O "desconhecido" por quadro é antes da suavização; depois dela nenhum vídeo 
 
 - Ainda não há gabarito anotado quadro a quadro; a avaliação acima é visual e por
   plausibilidade. Na Fase 7, anotar os instantes de troca de cor em uma amostra e medir a
-  acurácia por quadro e o atraso na detecção de cada troca.
+  acurácia por quadro e o atraso na detecção de cada troca (`src.evaluate semaforo`, ver
+  [fase7_avaliacao.md](fase7_avaliacao.md)).
 - A regra do ciclo assume o padrão verde → amarelo → vermelho (EUA/Brasil). Setas de
   conversão e semáforos piscantes não são tratados.
 - Versão 2 (prevista no plano): classificador treinado (LISA/Bosch + recortes destes vídeos),

@@ -9,7 +9,10 @@ aperta uma tecla no instante de cada evento. Três tarefas:
               ampliado do semáforo aparece no canto da tela.
     contagem  um evento por veículo que cruza a counting_line, no quadro em que
               a FRENTE do veículo toca a linha: [1] carro [2] moto [3] ônibus
-              [4] caminhão. [t] alterna o sentido (in/out, como no count.py).
+              [4] caminhão. [t] alterna o sentido (in/out, como no count.py;
+              a seta laranja aponta para o lado "in"). Com --line <nome>, usa
+              uma linha de pedestres da cena e a tecla [p] (pessoa), no quadro
+              em que os pés cruzam a linha.
     retencao  idem para a stop_line (sentido fixo = stop_line_direction). Com
               --light-gt semaforo.yaml e --skip-green, o vídeo pula as fases
               verdes do gabarito (com margem), e só os trechos amarelo/vermelho
@@ -47,7 +50,8 @@ from src.config import SceneConfig
 
 WINDOW = "annotate"
 LIGHT_KEYS = {ord("g"): "verde", ord("y"): "amarelo", ord("r"): "vermelho", ord("k"): "desconhecido"}
-CLASS_KEYS = {ord("1"): "carro", ord("2"): "moto", ord("3"): "onibus", ord("4"): "caminhao"}
+CLASS_KEYS = {ord("1"): "carro", ord("2"): "moto", ord("3"): "onibus", ord("4"): "caminhao",
+              ord("p"): "pessoa"}
 COLORS = {"verde": (0, 200, 0), "amarelo": (0, 200, 255), "vermelho": (0, 0, 255),
           "desconhecido": (160, 160, 160)}
 SPEEDS = [0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0]
@@ -95,7 +99,7 @@ def light_state_per_frame(ann: dict, n: int) -> np.ndarray:
 
 class Annotator:
     def __init__(self, scene: SceneConfig, task: str, out: Path, annotator: str,
-                 light_gt: Path | None, skip_green: bool, margin_s: float):
+                 light_gt: Path | None, skip_green: bool, margin_s: float, line_name: str | None = None):
         self.scene, self.task, self.out = scene, task, out
         self.cap = cv2.VideoCapture(scene.video)
         if not self.cap.isOpened():
@@ -105,7 +109,12 @@ class Annotator:
 
         self.line = None
         self.direction = "in"
-        if task == "contagem":
+        self.line_name = line_name
+        if task == "contagem" and line_name:
+            if line_name not in (scene.pedestrian_lines or {}):
+                raise SystemExit(f"A cena não tem a linha de pedestres '{line_name}' (scene_editor, tecla w).")
+            self.line = scene.pedestrian_lines[line_name]
+        elif task == "contagem":
             if not scene.counting_line:
                 raise SystemExit("A cena não tem counting_line. Marque com src.scene_editor (tecla c).")
             self.line = scene.counting_line
@@ -221,6 +230,7 @@ class Annotator:
             "fps": self.fps,
             "n_frames": self.n,
             "line": self.line,
+            "line_name": self.line_name,
             "annotator": self.annotator,
             "updated": dt.datetime.now().isoformat(timespec="seconds"),
             "light_gt": Path(self.light_gt).as_posix() if self.light_gt else None,
@@ -242,6 +252,14 @@ class Annotator:
         if self.line:
             (x1, y1), (x2, y2) = self.line
             cv2.line(img, (x1, y1), (x2, y2), (255, 200, 0), max(1, int(2 * s)))
+            d = np.array([x2 - x1, y2 - y1], float)
+            d /= np.linalg.norm(d)
+            m = np.array([(x1 + x2) / 2, (y1 + y2) / 2])
+            tip = m + np.array([d[1], -d[0]]) * 50 * s  # lado "in"
+            cv2.arrowedLine(img, tuple(m.astype(int)), tuple(tip.astype(int)), (0, 165, 255),
+                            max(1, int(2 * s)), tipLength=0.3)
+            cv2.putText(img, "in", tuple(tip.astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 0.7 * s,
+                        (0, 165, 255), max(1, int(2 * s)))
         if self.task == "semaforo":
             x1, y1, x2, y2 = self.scene.traffic_light_roi
             pad = 30
@@ -268,7 +286,9 @@ class Annotator:
             cv2.putText(img, txt, org, cv2.FONT_HERSHEY_SIMPLEX, 0.6 * s, col, max(1, int(s)))
 
         # cabeçalho
-        keys = {"semaforo": "g y r k = estado", "contagem": "1 carro 2 moto 3 onibus 4 caminhao  t = sentido",
+        keys = {"semaforo": "g y r k = estado",
+                "contagem": ("p = pessoa  t = sentido" if self.line_name else
+                             "1 carro 2 moto 3 onibus 4 caminhao  t = sentido"),
                 "retencao": "1 carro 2 moto 3 onibus 4 caminhao  n = prox. fase"}[self.task]
         hud = (f"{self.task} | quadro {self.idx}/{self.n - 1}  {self.idx / self.fps:7.2f}s | "
                f"{SPEEDS[self.speed_i]:g}x {'PLAY' if self.playing else 'PAUSA'} | "
@@ -353,6 +373,7 @@ def main() -> None:
     ap.add_argument("--task", required=True, choices=["semaforo", "contagem", "retencao"])
     ap.add_argument("--out", help="padrão: data/annotations/<cena>/<tarefa>.yaml")
     ap.add_argument("--annotator", default="", help="nome de quem anota (fica no arquivo)")
+    ap.add_argument("--line", help="contagem numa linha de pedestres da cena (pedestrian_lines)")
     ap.add_argument("--light-gt", help="gabarito do semáforo (retencao): habilita [n] e --skip-green")
     ap.add_argument("--skip-green", action="store_true", help="pula as fases verdes do gabarito")
     ap.add_argument("--margin", type=float, default=3.0,
@@ -360,11 +381,12 @@ def main() -> None:
     args = ap.parse_args()
 
     scene = SceneConfig.load(args.config)
-    out = Path(args.out) if args.out else Path("data/annotations") / scene.name / f"{args.task}.yaml"
+    stem = f"pedestres_{args.line}" if args.line else args.task
+    out = Path(args.out) if args.out else Path("data/annotations") / scene.name / f"{stem}.yaml"
     if args.skip_green and not args.light_gt:
         raise SystemExit("--skip-green precisa de --light-gt")
     Annotator(scene, args.task, out, args.annotator,
-              Path(args.light_gt) if args.light_gt else None, args.skip_green, args.margin).run()
+              Path(args.light_gt) if args.light_gt else None, args.skip_green, args.margin, args.line).run()
 
 
 if __name__ == "__main__":

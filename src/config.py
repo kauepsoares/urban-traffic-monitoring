@@ -45,10 +45,18 @@ class SceneConfig:
     # cruzamento, com a mesma convenção de direction_names ("in" = subindo na
     # imagem para uma linha marcada da esquerda para a direita).
     stop_line_direction: str = "in"
+    # Escala perto da linha de retenção, na direção perpendicular a ela (px por
+    # metro de via). Usada para estimar o instante em que a FRENTE do veículo
+    # cruza quando o ponto da caixa é a traseira (veículo se afastando da câmera).
+    stop_line_px_per_m: float | None = None
     # Polígono opcional onde a conversão é permitida no vermelho (ex.: direita
     # livre). Quem cruza no vermelho e entra nele não é infração.
     exempt_zone: list[list[int]] | None = None
     crosswalk_zone: list[list[int]] | None = None
+    # Linhas de contagem de pedestres, por nome (ex.: "travessia_rua" no eixo da
+    # rua, "calcada_direita" atravessando a calçada). Mesma convenção de sentido
+    # da counting_line: "in" = passa para o lado esquerdo de quem olha de A para B.
+    pedestrian_lines: dict[str, list[list[int]]] | None = None
     # Caixa justa em volta do grupo focal (a "caixa preta" com as 3 lâmpadas),
     # marcada no quadro `reference_frame` do vídeo.
     traffic_light_roi: list[int] | None = None

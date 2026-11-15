@@ -6,6 +6,7 @@ Abre um quadro do vídeo e permite marcar:
     [f] zona da faixa         (vários cliques, ENTER fecha o polígono)
     [t] região do semáforo    (2 cliques: cantos opostos da caixa preta do grupo
                                focal, bem justa; as 3 lâmpadas na vertical)
+    [w] linha de pedestres    (2 cliques; nome em --ped-line, padrão "pedestres")
 Outras teclas:
     [u] desfaz o último ponto    [x] apaga a região do modo atual
     [n]/[p] avança/volta 30 quadros    [s] salva o YAML    [q]/ESC sai
@@ -29,12 +30,13 @@ MODES = {
     ord("r"): ("stop_line", "linha de retencao", 2, (0, 0, 255)),
     ord("f"): ("crosswalk_zone", "faixa de pedestres", None, (0, 255, 255)),
     ord("t"): ("traffic_light_roi", "semaforo", 2, (255, 0, 255)),
+    ord("w"): ("pedestrian_line", "linha de pedestres", 2, (0, 165, 255)),
 }
 WINDOW = "scene_editor"
 
 
 class Editor:
-    def __init__(self, video: Path, out: Path, frame_idx: int, condition: str):
+    def __init__(self, video: Path, out: Path, frame_idx: int, condition: str, ped_line: str = "pedestres"):
         self.cap = cv2.VideoCapture(str(video))
         if not self.cap.isOpened():
             raise SystemExit(f"Não foi possível abrir {video}")
@@ -53,7 +55,9 @@ class Editor:
                 [self.scene.traffic_light_roi[:2], self.scene.traffic_light_roi[2:]]
                 if self.scene.traffic_light_roi else []
             ),
+            "pedestrian_line": list((self.scene.pedestrian_lines or {}).get(ped_line, [])),
         }
+        self.ped_line = ped_line
         self.mode = ord("c")
         if out.exists() and frame_idx == 0:
             frame_idx = self.scene.reference_frame  # reabre no quadro em que foi marcado
@@ -100,7 +104,7 @@ class Editor:
 
         _, label, _, color = MODES[self.mode]
         hud = (f"modo: {label} | quadro {self.frame_idx}/{self.n_frames} | "
-               "c r f t = modo  u = desfaz  x = apaga  n/p = quadro  s = salva  q = sai")
+               "c r f t w = modo  u = desfaz  x = apaga  n/p = quadro  s = salva  q = sai")
         cv2.rectangle(img, (0, 0), (img.shape[1], 28), (0, 0, 0), -1)
         cv2.putText(img, hud, (8, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
         return img
@@ -115,6 +119,12 @@ class Editor:
             self.scene.traffic_light_roi = [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)]
         else:
             self.scene.traffic_light_roi = None
+        lines = dict(self.scene.pedestrian_lines or {})
+        if len(p["pedestrian_line"]) == 2:
+            lines[self.ped_line] = p["pedestrian_line"]
+        else:
+            lines.pop(self.ped_line, None)
+        self.scene.pedestrian_lines = lines or None
         self.scene.reference_frame = self.frame_idx
         self.scene.save(self.out)
         print(f"Salvo em {self.out}")
@@ -153,8 +163,9 @@ def main() -> None:
     ap.add_argument("--out", required=True, help="ex.: configs/cena_01.yaml")
     ap.add_argument("--frame", type=int, default=0, help="quadro inicial")
     ap.add_argument("--condition", default="dia", choices=["dia", "noite", "chuva"])
+    ap.add_argument("--ped-line", default="pedestres", help="nome da linha de pedestres editada com [w]")
     args = ap.parse_args()
-    Editor(Path(args.video), Path(args.out), args.frame, args.condition).run()
+    Editor(Path(args.video), Path(args.out), args.frame, args.condition, args.ped_line).run()
 
 
 if __name__ == "__main__":

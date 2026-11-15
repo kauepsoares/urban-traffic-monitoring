@@ -1,0 +1,33 @@
+name: aic21_cam_19
+video: data/raw/AIC21_Track1_Vehicle_Counting/Dataset_A/cam_19.mp4
+frame_size:
+- 1920
+- 1080
+condition: dia
+counting_line: null
+direction_names:
+- in
+- out
+stop_line: null
+stop_line_direction: in
+exempt_zone: null
+crosswalk_zone: null
+pedestrian_lines:
+  travessia_rua:
+  - - 1040
+    - 1075
+  - - 1120
+    - 180
+  calcada_direita:
+  - - 1620
+    - 600
+  - - 1919
+    - 600
+traffic_light_roi: null
+light_validity: nao_verificado
+reference_frame: 1520
+notes: Rua urbana sem faixa de pedestres marcada. travessia_rua segue o eixo da rua
+  (quem a cruza atravessou a rua; in = da direita para a esquerda da imagem);
+  calcada_direita atravessa a calçada da direita (in = afastando-se da câmera).
+  Linhas propostas a partir das trajetórias do YOLO; conferir no scene_editor
+  (tecla w, --ped-line <nome>).

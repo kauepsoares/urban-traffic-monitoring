@@ -61,8 +61,9 @@ teste empírico em `docs/fase5_infracao.md`.
   o formato. As ROIs e MOIs do dataset podem ser reaproveitadas como referência.
 - **Sinal vermelho (Fases 4 e 5):** só a cam_7 (dia, amanhecer, chuva) serve para a avaliação,
   porque é a única em que o semáforo visível controla a fila. Isso dá **1 cruzamento**, abaixo do
-  critério de "2 a 3 cruzamentos com semáforo visível" → reforça o plano B (CARLA) ou a busca de
-  outra fonte de vídeo. A classificação de cor (Fase 4) continua válida nas cam_10 a cam_13.
+  critério de "2 a 3 cruzamentos com semáforo visível". **Decisão (2026-11-15): não usar o CARLA
+  (plano B).** A avaliação fica restrita aos vídeos reais da cam_7, e a falta de infrações vira
+  limitação declarada no texto. A classificação de cor (Fase 4) continua válida nas cam_10 a cam_13.
 - **Noite:** não há. Ou se aceita "amanhecer" como condição de pouca luz, ou se busca outra fonte.
 - **FPS baixo (8–10):** a 50 km/h, um veículo anda ~1,4–1,7 m entre quadros. Isso limita a
   precisão do instante de cruzamento e deve ser discutido no TCC.

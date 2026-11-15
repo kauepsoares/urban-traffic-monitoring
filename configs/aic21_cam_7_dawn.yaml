@@ -14,6 +14,7 @@ stop_line:
 - - 1026
   - 578
 stop_line_direction: in
+stop_line_px_per_m: 5.5
 exempt_zone: null
 crosswalk_zone: null
 traffic_light_roi:

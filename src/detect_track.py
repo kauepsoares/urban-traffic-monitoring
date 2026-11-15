@@ -119,6 +119,9 @@ def draw_scene(frame: np.ndarray, scene: SceneConfig) -> np.ndarray:
     if scene.crosswalk_zone:
         pts = np.array(scene.crosswalk_zone, dtype=np.int32)
         cv2.polylines(frame, [pts], True, (0, 255, 255), 2)
+    for name, (a, b) in (scene.pedestrian_lines or {}).items():
+        cv2.line(frame, tuple(a), tuple(b), (0, 165, 255), 2)
+        cv2.putText(frame, name, tuple(a), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
     if scene.traffic_light_roi:
         x1, y1, x2, y2 = scene.traffic_light_roi
         cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 255), 2)

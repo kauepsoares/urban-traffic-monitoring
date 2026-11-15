@@ -27,7 +27,7 @@ python -m src.scene_editor --video data/clips/cruzamento.mp4 --out configs/cena_
 # 2. Detecção + rastreamento (gera outputs/<video>_<modelo>/tracks.csv e annotated.mp4)
 python -m src.detect_track --source data/clips/cruzamento.mp4 --config configs/cena_01.yaml
 
-# Comparar tamanhos de modelo (qualidade x FPS)
+# Comparar tamanhos de modelo (FPS: docs/fase2_modelos.md)
 python -m src.detect_track --source data/clips/cruzamento.mp4 --model models/yolo11s.pt --no-video
 
 # 3. Contagem de veículos por linha virtual (janelas de 60 s)
@@ -59,7 +59,7 @@ e resultados em [docs/fase4_semaforo.md](docs/fase4_semaforo.md).
 python -m src.violation --config configs/aic21_cam_7.yaml            # --video para o vídeo anotado
 ```
 
-Um veículo comete infração quando o ponto inferior central da caixa cruza a linha de retenção,
+Um veículo comete infração quando a frente (estimada a partir do ponto inferior central da caixa e do comprimento da classe; ver doc) cruza a linha de retenção,
 no sentido de entrada, com o sinal vermelho (instante interpolado entre quadros, atraso da
 suavização compensado, linha acompanhando o balanço da câmera). Quem para sobre a linha não é
 contado até avançar. Gera `crossings.csv`, `violations.csv` e uma imagem de evidência por infração
@@ -69,6 +69,17 @@ contado até avançar. Gera `crossings.csv`, `violations.csv` e uma imagem de ev
 na imagem controla quem se afasta da câmera; se a fila vem em direção à câmera, o semáforo dela
 está fora da imagem. Cada cena declara isso em `light_validity` (`controla`, `substituto`,
 `nao_controla`, `nao_verificado`); cenas `nao_controla` são recusadas.
+
+### Pedestres (Fase 6)
+
+```powershell
+# conta pessoas cruzando as pedestrian_lines (eixo da rua, calçada) e/ou na crosswalk_zone
+python -m src.pedestrians --config configs/aic21_cam_19.yaml --video
+```
+
+O AIC21 não tem faixa de pedestres marcada; na cam_19 a linha `travessia_rua` (eixo da rua) pega
+as travessias no meio do quarteirão e `calcada_direita` mede o fluxo na calçada. Detalhes em
+[docs/fase6_pedestres.md](docs/fase6_pedestres.md).
 
 ### Avaliação (Fase 7)
 
@@ -110,6 +121,7 @@ src/
   count.py         Fase 3: contagem de veículos por classe, sentido e janela de tempo
   traffic_light.py Fase 4: estado do semáforo por quadro (HSV + suavização)
   violation.py     Fase 5: avanço de sinal vermelho + evidências
+  pedestrians.py   Fase 6: contagem de pedestres por linhas e faixa
   annotate.py      Fase 7: anotação do gabarito (eventos com instante)
   evaluate.py      Fase 7: métricas contra o gabarito
 docs/              levantamento dos dados e notas de método por fase
@@ -121,13 +133,13 @@ outputs/           CSVs e vídeos anotados (não versionados)
 
 - [x] Fase 0 — Ambiente (PyTorch cu128, GPU) e repositório
 - [ ] Fase 1 — Dados (datasets + configuração das cenas) — ferramenta de marcação pronta
-- [x] Fase 2 — Detecção e rastreamento (falta comparar n/s/m em vídeos reais)
+- [x] Fase 2 — Detecção e rastreamento (FPS de n/s/m medido; falta qualidade com gabarito)
 - [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
 - [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (falta gabarito e a versão 2 treinada)
-- [x] Fase 5 — Avanço de sinal vermelho (avaliação só na cam_7 dia/amanhecer/chuva, 40 min: 1 infração limite; falta gabarito e mais positivos)
-- [ ] Fase 6 — Contagem de pedestres
+- [x] Fase 5 — Avanço de sinal vermelho (avaliação só na cam_7 dia/amanhecer/chuva, 40 min: 1 infração limite; cruzamento pelo instante estimado da frente do veículo; 0 infrações em 40 min; sem CARLA; falta gabarito)
+- [x] Fase 6 — Contagem de pedestres (cam_19: travessias e calçada; falta gabarito)
 - [ ] Fase 7 — Avaliação (ferramentas prontas; falta anotar o gabarito e rodar)
-- [ ] Fase 8 — Escrita e defesa
+- [ ] Fase 8 — Escrita e defesa (rascunho em [docs/monografia_rascunho.md](docs/monografia_rascunho.md))
 
 ## Privacidade
 

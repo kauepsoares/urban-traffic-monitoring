@@ -61,6 +61,10 @@ Precisa de `counting_line` na cena (`scene_editor`, tecla `c`). A tecla `t` alte
 python -m src.annotate --config configs/aic21_cam_10.yaml --task contagem
 ```
 
+Pedestres: `--line <nome>` usa uma das `pedestrian_lines` da cena e a tecla `p` (pessoa), no
+quadro em que os pés cruzam a linha. O arquivo sai como `pedestres_<nome>.yaml`, e o
+`evaluate contagem` filtra sozinho a mesma linha no `crossings.csv` do `pedestrians.py`.
+
 Sugestão de amostra: 5 min por cena, em 3 a 4 cenas de condições diferentes (cam_7 dia, cam_7_rain,
 cam_7_dawn, uma das cam_10 a cam_13).
 
@@ -103,7 +107,9 @@ veículo inteiro já passou da linha, alguns décimos de segundo depois de a fre
 4,5 m a 30 km/h leva ~0,5 s). Perto da troca amarelo → vermelho, isso pode transformar em "infração"
 um carro cuja frente cruzou ainda no amarelo. É o caso da única infração detectada até agora
 (865,4 s, 0,2 s depois do vermelho). A avaliação `infracao` mede esse efeito, porque o gabarito usa
-a frente.
+a frente. A medição quadro a quadro desse caso está em `fase5_infracao.md` (seção "Revisão:
+traseira x frente"): a frente cruza 0,45 s antes do vermelho, e o `violation.py` agora usa o instante da frente. O topo da caixa não serve como
+aproximação da frente nessa perspectiva.
 
 ## Validação do código
 

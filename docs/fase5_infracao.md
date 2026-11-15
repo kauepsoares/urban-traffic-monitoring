@@ -94,6 +94,86 @@ Nas 3 cenas `controla` (40 min de vídeo, 688 cruzamentos), o sistema registrou 
 
 Desempenho: **41–46 FPS** no pipeline completo (RTX 5060), acima dos 8–10 FPS dos vídeos.
 
+### Revisão: traseira x frente do veículo (Fase 7)
+
+O ponto inferior central da caixa só é o contato com o chão **mais próximo da câmera**. Na cam_7
+os veículos se afastam da câmera, então esse ponto é a **traseira**: o sistema registra o
+cruzamento quando o veículo inteiro já passou da linha. Pela definição do CTB, o que vale é a
+**frente** passando a linha. O atraso é L/v, o comprimento do veículo dividido pela velocidade: um
+carro de 4,7 m a 50 km/h leva ~0,34 s.
+
+Medição do caso de 865,4 s (caixa do YOLO quadro a quadro):
+
+| Quadro | 6913 | 6916 | 6919 | 6921 | 6922 | 6923 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Semáforo | amarelo | amarelo | amarelo | amarelo | **vermelho** | vermelho |
+| Base da caixa (traseira), y | 632 | 613 | 599 | 591 | 582 | 577 (cruza) |
+| Topo da caixa (teto), y | 594 | 576 (na linha) | 562 | 555 | 547 | 541 |
+
+- A traseira cruza 0,2 s depois do início do vermelho (resultado acima).
+- O **topo da caixa não serve** como "frente": a câmera está quase na horizontal, e a caixa
+  (46x36 px, proporção da traseira de um carro) é praticamente só a face traseira. O teto aparece
+  vários metros adiante do para-choque dianteiro. Usar o topo anteciparia demais o cruzamento.
+- Primeira estimativa, feita à mão (velocidade constante, escala de 4 a 6 px/m): a frente cruzaria
+  ~0,3 s antes da traseira, ~0,1 s antes do vermelho. O método implementado, a partir da trajetória
+  (abaixo), dá 0,59 s de antecedência: a frente cruzou **0,45 s antes do vermelho**. A diferença vem
+  dos quadros repetidos do vídeo, que reduzem o deslocamento médio por quadro. A precisão do vídeo
+  (8 FPS, quadros repetidos) é de ±1 quadro (±0,125 s).
+
+**Consequência:** o cruzamento pela traseira atrasa o instante em ~0,3–0,5 s para carros (mais
+para ônibus e caminhões) quando o veículo se afasta da câmera, e isso favorece falsas infrações na
+troca amarelo → vermelho. Correção proposta: estimar o instante da frente como
+`t_traseira − L_classe / v`, com a escala px/m perto da linha calibrada pelo gabarito da Fase 7.
+O anotador marca a frente, e a mediana de `t_traseira − t_frente` por classe dá a correção.
+
+### Implementação: instante da frente (padrão `--anchor frente`)
+
+A frente toca a linha quando a traseira está a um comprimento de veículo antes dela. O
+`violation.py` guarda, para cada ID, a distância da traseira até a linha nos últimos 6 s e procura
+o instante em que ela valia `−L_classe × stop_line_px_per_m`, interpolando entre quadros. Assim não
+é preciso supor velocidade constante, e o método vale também para quem arranca. Comprimentos:
+carro 4,7 m, moto 2,2 m, ônibus 12 m, caminhão 6,5 m (no COCO, "caminhão" inclui muitas picapes).
+Casos especiais (coluna `front_method`):
+
+- `extrapolado`: a trajetória começa depois desse ponto; usa a velocidade do último segundo;
+- `lento`: a frente chegou mais de 3 s antes da traseira (parou ou andou devagar sobre a linha);
+  usa a traseira;
+- `sem_historico` / `sem_escala`: usa a traseira.
+
+`crossings.csv` passa a ter `rear_time_s`, `front_time_s`, `lead_s` e `light_state_rear`, para
+comparar as duas definições. `--anchor traseira` reproduz o comportamento anterior.
+
+**Escala (`stop_line_px_per_m: 5.5`, provisória).** Calibrada pelo espaçamento entre traseiras de
+carros parados na mesma faixa, na fila do vermelho: ~40–45 px perto da linha (y ≈ 607–630) para
+~7 m (comprimento + folga típicos de fila parada), o que dá ~6 px/m, ou ~5,5 px/m na linha. A
+incerteza é de cerca de ±20%. A mesma escala vale para o amanhecer e a chuva: a câmera foi
+reposicionada entre as gravações, mas o tamanho dos carros e das marcas no chão perto da linha é
+parecido (±10%). Recalibrar com o gabarito da Fase 7.
+
+### Resultado: frente x traseira (cam_7, 40 min, 724 cruzamentos)
+
+| Cena | Cruzamentos | Método `historico` | Antecedência da frente, mediana (carro / caminhão) | Vereditos que mudaram |
+| --- | --- | --- | --- | --- |
+| cam_7 (dia) | 603 | 517 | 0,93 s / 1,30 s | 5 |
+| cam_7_dawn | 67 | 62 | 0,64 s / 1,00 s | 0 |
+| cam_7_rain | 54 | 46 | 0,87 s / 1,59 s | 0 |
+
+Os 5 vereditos que mudaram, todos na cam_7 de dia:
+
+| ID | Traseira | Frente | Antecedência | Cor (traseira → frente) |
+| --- | --- | --- | --- | --- |
+| 31734 | 865,39 s | 864,80 s | 0,59 s | **vermelho → amarelo** (a frente cruzou 0,45 s antes do vermelho) |
+| 22826 | 601,25 s | 600,57 s | 0,68 s | amarelo → verde |
+| 41269 | 1121,34 s | 1120,63 s | 0,71 s | amarelo → verde |
+| 46651 | 1251,79 s | 1250,84 s | 0,95 s | amarelo → verde |
+| 68323 | 1771,93 s | 1769,00 s | 2,92 s | amarelo → verde (arrancada lenta) |
+
+**A única infração da versão anterior deixa de existir.** A frente do carro 31734 cruzou a linha
+0,45 s antes do vermelho. Com ±20% na escala, a antecedência fica entre 0,47 e 0,74 s, e a frente
+cruza de 0,33 a 0,6 s antes do vermelho: no amarelo em qualquer caso. Nas 3 cenas válidas
+(40 min), o sistema não registra **nenhuma infração**. Isso é coerente com a observação visual: não
+há avanço de sinal claro nesses vídeos.
+
 ### Erros encontrados e corrigidos durante o desenvolvimento
 
 | Erro | Causa | Correção |
@@ -107,9 +187,12 @@ Desempenho: **41–46 FPS** no pipeline completo (RTX 5060), acima dos 8–10 FP
 ## Limitações conhecidas
 
 - **Poucos positivos.** Com 1 infração (limite) em 40 min de cenas válidas, precisão e revocação
-  não podem ser estimadas com segurança, e só há um cruzamento físico (cam_7). Próximos passos:
-  anotar manualmente os cruzamentos no vermelho (Fase 7), gerar casos de avanço no CARLA (plano B)
-  para medir a revocação e procurar outra fonte de vídeo em que o semáforo da própria faixa apareça.
+  não podem ser estimadas com segurança, e só há um cruzamento físico (cam_7). **Decisão
+  (2026-11-15): sem CARLA.** A avaliação usa só vídeo real: o gabarito manual da Fase 7 mede a
+  detecção dos cruzamentos e a cor atribuída a cada um, com atenção às trocas amarelo → vermelho,
+  onde os erros de instante viram erros de veredito. A revocação de infrações reais fica declarada
+  como não mensurável com estes dados (trabalho futuro: outra fonte de vídeo, com o semáforo da
+  própria faixa visível e mais tráfego).
 - **Faixa de conversão à esquerda.** A linha da cam_7 cobre também a faixa da esquerda, cujos
   veículos obedecem ao grupo focal de conversão (à esquerda, x≈795), não ao da via principal. Os 9
   cruzamentos `trajetoria_incompativel` da cam_7 são todos nessa faixa (viram à esquerda logo após a

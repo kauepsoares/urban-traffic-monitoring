@@ -26,6 +26,18 @@ Junta o rastreamento (YOLO + ByteTrack) com o estado do semáforo (Fase 4):
    "desconhecidos"). Como a decisão já espera o veículo andar, a troca é
    reposicionada em retrospectiva: a nova cor começa logo depois do último
    quadro bruto que ainda mostrava a cor antiga.
+   Instante da FRENTE do veículo (padrão, `--anchor frente`): o ponto inferior
+   central da caixa é o contato com o chão mais próximo da câmera. Quando o
+   veículo se afasta da câmera (cam_7), ele é a TRASEIRA, e o CTB considera a
+   frente passando a linha. A frente toca a linha quando a traseira está a um
+   comprimento de veículo antes dela: com a escala `stop_line_px_per_m` da cena
+   e o comprimento típico da classe, procura-se no histórico da trajetória o
+   instante em que a traseira estava a L x escala px antes da linha (sem supor
+   velocidade constante). Se a trajetória começa depois disso, extrapola pela
+   velocidade do último segundo. Se a frente chegou mais de `max_lead_s` antes
+   da traseira (veículo que parou ou andou devagar sobre a linha), usa a
+   traseira. Veículo que se aproxima da câmera já tem a frente embaixo: use
+   `--anchor traseira` (o ponto da caixa já é a frente).
 4. Decisão, `decide_after_s` segundos depois do cruzamento (ou quando o ID some):
      - o veículo precisa ter avançado além da linha (`min_travel`). Quem para
        em cima da linha fica em espera (até `max_wait_s`); se depois avançar,
@@ -71,6 +83,9 @@ from src.traffic_light import (GREEN, RED, STATE_BGR, UNKNOWN, YELLOW, TrafficLi
                                draw_light)
 
 VERDICT_BY_STATE = {RED: "infracao", YELLOW: "amarelo", GREEN: "verde", UNKNOWN: "indeterminado"}
+# Comprimento típico (m) por classe, para estimar o instante em que a frente cruza.
+# "caminhao" no COCO inclui muitas picapes nos EUA; 6,5 m é um meio-termo.
+VEHICLE_LENGTH_M = {"carro": 4.7, "moto": 2.2, "onibus": 12.0, "caminhao": 6.5}
 
 
 def _side(a: np.ndarray, b: np.ndarray, p: np.ndarray) -> float:
@@ -91,6 +106,7 @@ class Candidate:
     last_point: tuple[float, float] | None = None
     post_ok: bool | None = None  # trajetória ~1 s depois aponta para dentro do cruzamento?
     entered_exempt: bool = False
+    history: list[tuple[int, float]] = field(default_factory=list)  # (quadro, px além da linha) antes
 
 
 @dataclass
@@ -165,9 +181,13 @@ class ViolationDetector:
     post_check_s: float = 1.0        # quando conferir a trajetória depois da linha
     max_step_frac: float = 1.0       # deslocamento máx. por quadro, em alturas de caixa
     min_cos_normal: float = 0.5      # cos do ângulo entre o movimento e a normal da linha (60°)
+    anchor: str = "frente"           # instante do cruzamento: "frente" (estimada) ou "traseira"
+    px_per_m: float | None = None    # escala perto da linha, na direção da normal (px/m)
+    max_lead_s: float = 3.0          # frente antes da traseira acima disso = parou sobre a linha
     rejected: Counter = field(default_factory=Counter)  # cruzamentos descartados por filtro
     timeline: LightTimeline = field(init=False)
     prev: dict[int, tuple[int, np.ndarray]] = field(default_factory=dict)
+    hist: dict[int, deque] = field(default_factory=dict)  # (quadro, px além da linha) recentes
     class_votes: dict[int, Counter] = field(default_factory=lambda: defaultdict(Counter))
     pending: dict[int, Candidate] = field(default_factory=dict)
     decided_ids: set[int] = field(default_factory=set)
@@ -199,6 +219,10 @@ class ViolationDetector:
             tid = int(tid)
             self.class_votes[tid][int(cls)] += 1
             p = np.array([(xyxy[0] + xyxy[2]) / 2, xyxy[3]], dtype=float)
+            h = self.hist.get(tid)
+            if h is None:
+                h = self.hist[tid] = deque(maxlen=int(round(6 * self.fps)))
+            h.append((frame, self._beyond(a, b, p)))
             if tid in self.pending:
                 c = self.pending[tid]
                 c.max_travel = max(c.max_travel, self._beyond(a, b, p))
@@ -233,7 +257,7 @@ class ViolationDetector:
                             track_id=tid, frame=frame, frame_float=pf + (frame - pf) * alpha,
                             point=(float(x[0]), float(x[1])), travel_needed=need,
                             max_travel=d1, travel_frame=frame if d1 >= need else None, last_seen=frame,
-                            last_point=(float(p[0]), float(p[1])))
+                            last_point=(float(p[0]), float(p[1])), history=list(h))
             self.prev[tid] = (frame, p)
 
         decided = []
@@ -248,6 +272,11 @@ class ViolationDetector:
                 self.decided_ids.add(tid)
         # memória limitada: guarda 5 min de estados (fases passam de 1 min)
         self.timeline.prune(frame - int(300 * self.fps))
+        if frame % int(30 * self.fps) == 0:  # esquece IDs que sumiram há mais de 10 s
+            old = frame - int(10 * self.fps)
+            for tid in [t for t, (f, _) in self.prev.items() if f < old]:
+                self.prev.pop(tid, None)
+                self.hist.pop(tid, None)
         return decided
 
     def _post_direction_ok(self, c: Candidate, a: np.ndarray, b: np.ndarray) -> bool | None:
@@ -260,11 +289,40 @@ class ViolationDetector:
             return None
         return bool(self._beyond(a, b, np.array(c.last_point)) / dist >= self.min_cos_normal)
 
+    def front_frame(self, c: Candidate, cls: str) -> tuple[float | None, str]:
+        """Instante (em quadros) em que a frente tocou a linha, e o método usado."""
+        if self.px_per_m is None:
+            return None, "sem_escala"
+        need = VEHICLE_LENGTH_M.get(cls, VEHICLE_LENGTH_M["carro"]) * self.px_per_m
+        pts = [(f, d) for f, d in c.history if f < c.frame] + [(c.frame_float, 0.0)]
+        # último instante em que a traseira passou por -need, olhando para trás
+        for (f0, d0), (f1, d1) in zip(reversed(pts[:-1]), reversed(pts[1:])):
+            if d0 < -need <= d1:
+                return f0 + (f1 - f0) * (-need - d0) / (d1 - d0), "historico"
+        # trajetória começou depois: extrapola com a velocidade do último segundo
+        recent = [(f, d) for f, d in pts if f >= c.frame_float - self.fps]
+        if len(recent) >= 2 and recent[-1][0] > recent[0][0]:
+            v = (recent[-1][1] - recent[0][1]) / (recent[-1][0] - recent[0][0])  # px/quadro
+            if v > 0:
+                return c.frame_float - need / v, "extrapolado"
+        return None, "sem_historico"
+
     def _decide(self, c: Candidate, now: int) -> dict:
         horizon = int(round(self.decide_after_s * self.fps))
         waited_on_line = c.travel_frame is not None and c.travel_frame - c.frame > horizon
+        votes = self.class_votes.get(c.track_id)
+        cls = COCO_CLASSES.get(votes.most_common(1)[0][0], "?") if votes else "?"
+        front, method = self.front_frame(c, cls)
+        lead = None if front is None else (c.frame_float - front) / self.fps
+        if front is not None and lead > self.max_lead_s:
+            method = "lento"  # parou ou andou devagar com a frente além da linha
+        use_front = self.anchor == "frente" and method in ("historico", "extrapolado")
         # quem parou sobre a linha e avançou depois "entra" no cruzamento quando avança
-        t_frame = float(c.travel_frame) if waited_on_line else c.frame_float
+        if waited_on_line:
+            t_frame = float(c.travel_frame)
+        else:
+            t_frame = front if use_front else c.frame_float
+        rear_state = self.timeline.state_at(int(np.floor(c.frame_float)))
         cross_frame = int(np.floor(t_frame))
         state = self.timeline.state_at(cross_frame)
         start = self.timeline.phase_start(cross_frame)
@@ -282,8 +340,6 @@ class ViolationDetector:
             verdict = "vermelho_tolerancia"
         else:
             verdict = VERDICT_BY_STATE[state]
-        votes = self.class_votes.get(c.track_id)
-        cls = COCO_CLASSES.get(votes.most_common(1)[0][0], "?") if votes else "?"
         rec = {
             "track_id": c.track_id,
             "class": cls,
@@ -291,6 +347,12 @@ class ViolationDetector:
             "cross_time_s": round(t_frame / self.fps, 3),
             "light_state": state,
             "time_in_state_s": round(since, 2),
+            "anchor": "frente" if use_front and not waited_on_line else "traseira",
+            "front_method": method,
+            "front_time_s": None if front is None else round(front / self.fps, 3),
+            "rear_time_s": round(c.frame_float / self.fps, 3),
+            "lead_s": None if lead is None else round(lead, 3),
+            "light_state_rear": rear_state,
             "travel_px": round(c.max_travel, 1),
             "waited_on_line": waited_on_line,
             "verdict": verdict,
@@ -396,6 +458,8 @@ def main() -> None:
     ap.add_argument("--decide-after", type=float, default=2.0, help="segundos até decidir cada cruzamento")
     ap.add_argument("--red-grace", type=float, default=0.0,
                     help="tolerância (s) após o início do vermelho antes de contar infração")
+    ap.add_argument("--anchor", default="frente", choices=["frente", "traseira"],
+                    help="instante do cruzamento: frente estimada (CTB) ou ponto da caixa (traseira)")
     ap.add_argument("--max-frames", type=int, default=None)
     ap.add_argument("--video", action="store_true", help="grava vídeo anotado")
     ap.add_argument("--force", action="store_true",
@@ -430,7 +494,11 @@ def main() -> None:
         exempt_zone=np.array(scene.exempt_zone, dtype=float) if scene.exempt_zone else None,
         decide_after_s=args.decide_after,
         red_grace_s=args.red_grace,
+        anchor=args.anchor,
+        px_per_m=scene.stop_line_px_per_m,
     )
+    if args.anchor == "frente" and scene.stop_line_px_per_m is None:
+        print("AVISO: a cena não tem stop_line_px_per_m; usando a traseira (ponto da caixa) como cruzamento.")
 
     out_dir = Path(args.out) / f"{source.stem}_infracoes"
     (out_dir / "evidence").mkdir(parents=True, exist_ok=True)
@@ -439,7 +507,8 @@ def main() -> None:
     ann = make_annotators(info)
     sink = sv.VideoSink(str(out_dir / "annotated.mp4"), info) if args.video else None
     # cobre o atraso da decisão (até decide_after + 1 s de ID perdido) mais 0,5 s antes do cruzamento
-    buffer: deque[BufferedFrame] = deque(maxlen=int(np.ceil((args.decide_after + 4.0) * fps)))
+    # + até max_lead_s, porque o instante da frente pode vir antes do da traseira
+    buffer: deque[BufferedFrame] = deque(maxlen=int(np.ceil((args.decide_after + 4.0 + 3.0) * fps)))
     light_rows = []
     violators: set[int] = set()
 
@@ -484,6 +553,7 @@ def main() -> None:
     elapsed = time.perf_counter() - t0
 
     cols = ["track_id", "class", "cross_frame", "cross_time_s", "light_state", "time_in_state_s",
+            "anchor", "front_method", "front_time_s", "rear_time_s", "lead_s", "light_state_rear",
             "travel_px", "waited_on_line", "verdict", "decided_frame", "x", "y"]
     df = pd.DataFrame(detector.records, columns=cols).sort_values("cross_frame")
     df.to_csv(out_dir / "crossings.csv", index=False)
@@ -496,7 +566,13 @@ def main() -> None:
         "source": str(source), "config": args.config, "light_validity": validity,
         "model": args.model, "imgsz": args.imgsz,
         "frames": n, "seconds": round(elapsed, 1), "fps": round(n / elapsed, 1) if elapsed else 0,
-        "decide_after_s": args.decide_after, "red_grace_s": args.red_grace, "crossings": len(df),
+        "decide_after_s": args.decide_after, "red_grace_s": args.red_grace,
+        "anchor": args.anchor, "stop_line_px_per_m": scene.stop_line_px_per_m,
+        "front_methods": {k: int(v) for k, v in df["front_method"].value_counts().items()},
+        "lead_s_median_by_class": {k: round(float(v), 3) for k, v in
+                                   df[df.front_method == "historico"].groupby("class")["lead_s"].median().items()},
+        "verdicts_rear": {k: int(v) for k, v in df["light_state_rear"].value_counts().items()},
+        "crossings": len(df),
         "verdicts": {k: int(v) for k, v in summary.items()},
         "rejected_crossings": dict(detector.rejected),
     }

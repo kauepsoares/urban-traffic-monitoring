@@ -77,7 +77,8 @@ def write_yaml(path: Path, data: dict) -> None:
 
 
 def out_dir_for(args, gt: dict, task: str) -> Path:
-    d = Path(args.out) / f"{gt.get('scene', 'cena')}_{task}"
+    suffix = f"_{gt['line_name']}" if gt.get("line_name") else ""
+    d = Path(args.out) / f"{gt.get('scene', 'cena')}_{task}{suffix}"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -200,9 +201,12 @@ def eval_light(args) -> None:
 
 # ---------------------------------------------------------------- contagem
 
-def load_pred_crossings(path: Path, fps: float, direction: str, merge_heavy: bool) -> pd.DataFrame:
+def load_pred_crossings(path: Path, fps: float, direction: str, merge_heavy: bool,
+                        line: str | None = None) -> pd.DataFrame:
     """Lê crossings.csv do count.py (time_s, direction) ou do violation.py (cross_time_s)."""
     df = pd.read_csv(path)
+    if line is not None and "line" in df.columns:  # pedestrians.py: várias linhas no mesmo CSV
+        df = df[df["line"] == line]
     if "cross_time_s" in df.columns:  # violation.py: linha de retenção, sentido único
         df = df.rename(columns={"cross_time_s": "time_s"})
         df["direction"] = direction
@@ -292,7 +296,7 @@ def eval_count(args) -> None:
     out = out_dir_for(args, gt, "contagem")
     summary, all_metrics = [], {"gabarito": str(args.gt), "tolerancia_s": args.tol, "previsoes": {}}
     for name, path in zip(names, args.pred):
-        p = load_pred_crossings(Path(path), fps, direction, args.merge_heavy)
+        p = load_pred_crossings(Path(path), fps, direction, args.merge_heavy, gt.get("line_name"))
         p = p[reviewed[p.frame.clip(0, n - 1)] & (p.frame < n)].reset_index(drop=True)
         m = match_crossings(g, p, args.tol)
         met = count_metrics(g, p, m, args.window, reviewed.sum() / fps)
@@ -395,7 +399,7 @@ def main() -> None:
     a.add_argument("--tr-tol", type=float, default=3.0, help="janela (s) para parear trocas de cor")
 
     b = sub.add_parser("contagem", help="eventos de cruzamento de linha")
-    b.add_argument("--gt", required=True, help="contagem.yaml ou retencao.yaml")
+    b.add_argument("--gt", required=True, help="contagem.yaml, retencao.yaml ou pedestres_<linha>.yaml")
     b.add_argument("--pred", required=True, nargs="+", help="um ou mais crossings.csv")
     b.add_argument("--names", nargs="+", help="nome de cada --pred (padrão: pasta)")
     b.add_argument("--tol", type=float, default=1.0, help="diferença máxima de tempo (s) num par")

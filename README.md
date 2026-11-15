@@ -6,17 +6,96 @@ contar veículos, contar pedestres e detectar veículos que avançam o sinal ver
 Base: **YOLO (Ultralytics) + ByteTrack**, com módulos de contagem (supervision),
 classificação do semáforo e detecção de infração.
 
-## Ambiente
+## Como rodar o projeto
 
-Desenvolvido em Windows 11, Python 3.13, RTX 5060 8 GB (precisa de PyTorch com CUDA 12.8+).
+Desenvolvido em Windows 11, Python 3.13 e RTX 5060 8 GB. Funciona com qualquer GPU NVIDIA com
+CUDA 12.8+ e, mais devagar, só na CPU (`--device cpu`). Todos os comandos rodam na raiz do
+repositório, no PowerShell.
+
+### 1. Ambiente Python
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+.\.venv\Scripts\Activate.ps1          # se o PowerShell bloquear: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128   # GPUs RTX 50xx precisam do cu128
 pip install -r requirements.txt
-python -m src.check_env      # deve mostrar "CUDA disponível: True"
+python -m src.check_env               # deve mostrar "CUDA disponível: True"
 ```
+
+Sem GPU, instale o PyTorch padrão (`pip install torch torchvision`) e acrescente `--device cpu` aos
+comandos.
+
+### 2. Pesos do YOLO
+
+Os pesos não são versionados (`models/` está no `.gitignore`). Para baixar os três tamanhos
+usados no TCC do repositório oficial da Ultralytics (~64 MB no total):
+
+```powershell
+cd models
+python -c "from ultralytics.utils.downloads import attempt_download_asset as d; [d(m) for m in ('yolo11n.pt', 'yolo11s.pt', 'yolo11m.pt')]"
+cd ..
+```
+
+### 3. Dados (AI City Challenge 2021, Track 1)
+
+Os vídeos não podem ser redistribuídos (licença do dataset) e não estão no repositório. Peça o
+acesso ao *AIC21 Track 1 — Vehicle Counting* no site do AI City Challenge
+(<https://www.aicitychallenge.org/>), aceite a licença e extraia o pacote assim:
+
+```
+data/raw/AIC21_Track1_Vehicle_Counting/
+    Dataset_A/cam_7.mp4, cam_7_dawn.mp4, cam_7_rain.mp4, cam_10.mp4 ... cam_19.mp4
+    ROIs/  movement_description/  counting_gt_sample/  ...
+```
+
+As cenas em `configs/aic21_*.yaml` já apontam para esses caminhos. Para usar outro vídeo, crie a
+cena com o `scene_editor` (seção "Uso" abaixo).
+
+### 4. Reproduzir os resultados do TCC
+
+Na ordem; cada comando grava em `outputs/` (tempos medidos na RTX 5060):
+
+```powershell
+# Fase 4 — estado do semáforo (cam_7, 30 min de vídeo em ~45 s)
+python -m src.traffic_light --config configs/aic21_cam_7.yaml
+
+# Fase 5 — avanço de sinal vermelho nas 3 cenas válidas (~1 min, ~1 min, ~7 min)
+python -m src.violation --config configs/aic21_cam_7_dawn.yaml
+python -m src.violation --config configs/aic21_cam_7_rain.yaml
+python -m src.violation --config configs/aic21_cam_7.yaml
+
+# Fase 6 — pedestres na cam_19 (~2,5 min; --video grava o vídeo anotado)
+python -m src.pedestrians --config configs/aic21_cam_19.yaml --video
+
+# Fase 3 — contagem de veículos (precisa de counting_line na cena; teste com o vídeo de exemplo)
+python -m src.count --source data/raw/exemplos/vehicles.mp4 --config configs/exemplo_vehicles.yaml --window 5
+```
+
+O que conferir em cada saída:
+
+| Saída | Arquivos principais |
+| --- | --- |
+| `outputs/cam_7_semaforo/` | `states.csv` (estado por quadro), `phases.csv`, `timeline.png`, `samples.jpg` |
+| `outputs/cam_7*_infracoes/` | `crossings.csv` (todos os cruzamentos com veredito), `violations.csv`, `evidence/`, `run_info.yaml` |
+| `outputs/cam_19_pedestres/` | `crossings.csv` (coluna `line`), `counts_total.csv`, `annotated.mp4` |
+| `outputs/*_contagem/` | `crossings.csv`, `counts_total.csv`, `counts_per_window.csv`, `annotated.mp4` |
+
+### 5. Avaliação contra o gabarito (Fase 7)
+
+O gabarito é anotado à mão com `src.annotate` (uma janela do OpenCV: assista ao vídeo e aperte uma
+tecla em cada evento; os controles aparecem no topo da tela) e salvo em `data/annotations/`.
+Depois, o `src.evaluate` calcula as métricas em `outputs/avaliacao/`. Os comandos estão na seção
+"Avaliação (Fase 7)" abaixo, e o protocolo, em [docs/fase7_avaliacao.md](docs/fase7_avaliacao.md).
+
+### Problemas comuns
+
+- **`CUDA disponível: False`**: o PyTorch instalado é o de CPU. Reinstale com o índice `cu128`
+  (passo 1).
+- **`Não foi possível abrir data/raw/...`**: o vídeo não está no caminho esperado (passo 3).
+- **`A cena ... não tem stop_line / counting_line / pedestrian_lines`**: marque a região com
+  `python -m src.scene_editor --video <vídeo> --out <cena>.yaml` (teclas `r`, `c`, `w`).
+- **`light_validity: nao_controla`**: a cena foi recusada de propósito, porque o semáforo visível
+  não controla aquela fila (ver Fase 5).
 
 ## Uso
 
@@ -136,7 +215,7 @@ outputs/           CSVs e vídeos anotados (não versionados)
 - [x] Fase 2 — Detecção e rastreamento (FPS de n/s/m medido; falta qualidade com gabarito)
 - [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
 - [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (falta gabarito e a versão 2 treinada)
-- [x] Fase 5 — Avanço de sinal vermelho (avaliação só na cam_7 dia/amanhecer/chuva, 40 min: 1 infração limite; cruzamento pelo instante estimado da frente do veículo; 0 infrações em 40 min; sem CARLA; falta gabarito)
+- [x] Fase 5 — Avanço de sinal vermelho (avaliação só na cam_7 dia/amanhecer/chuva; cruzamento pelo instante estimado da frente do veículo; 0 infrações em 40 min; sem CARLA; falta gabarito)
 - [x] Fase 6 — Contagem de pedestres (cam_19: travessias e calçada; falta gabarito)
 - [ ] Fase 7 — Avaliação (ferramentas prontas; falta anotar o gabarito e rodar)
 - [ ] Fase 8 — Escrita e defesa (rascunho em [docs/monografia_rascunho.md](docs/monografia_rascunho.md))

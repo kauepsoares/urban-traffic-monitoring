@@ -211,7 +211,7 @@ outputs/           CSVs e vídeos anotados (não versionados)
 ## Andamento
 
 - [x] Fase 0 — Ambiente (PyTorch cu128, GPU) e repositório
-- [ ] Fase 1 — Dados (datasets + configuração das cenas) — ferramenta de marcação pronta
+- [x] Fase 1 — Dados (datasets + configuração das cenas) — ferramenta de marcação pronta
 - [x] Fase 2 — Detecção e rastreamento (FPS de n/s/m medido; falta qualidade com gabarito)
 - [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
 - [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (gabarito: 99,85% por quadro, 42/42 trocas; versão 2 treinada fica como trabalho futuro)

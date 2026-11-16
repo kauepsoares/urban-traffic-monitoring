@@ -120,4 +120,44 @@ cruzamentos fica em ~98%, e assim por diante. Os números de verdade dependem do
 
 ## Resultados
 
-_(a preencher depois da anotação)_
+Gabaritos em `data/annotations/` (anotados em 2026-11-16). Discussão completa nas seções 9.3 a
+9.5 de [artigo_cientifico.md](artigo_cientifico.md).
+
+### Semáforo (cam_7, 30 min integrais, 42 trocas)
+
+| Versão | Acurácia por quadro | F1 verde / amarelo / vermelho | Trocas | Erro médio na troca |
+| --- | --- | --- | --- | --- |
+| raw | 90,38% (100% nos quadros decididos) | 0,974 / 0,912 / 0,903 | 42/42, 0 falsas | +0,051 s |
+| state | 99,34% | 0,997 / 0,925 / 0,993 | 42/42, 0 falsas | +0,283 s |
+| retro | 99,85% | 0,999 / 0,983 / 0,999 | 42/42, 0 falsas | −0,062 s |
+
+A retrospectiva tira o atraso da votação (≈2 quadros) e é a que a Fase 5 consulta.
+
+### Cruzamentos da linha de retenção (cam_7, 5,9 min assistidos com `--skip-green`)
+
+| Referência | Gabarito | Previstos | Pareados | P | R | F1 | Diferença mediana |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| frente (`outputs/full_frente`) | 14 | 15 | 8 | 0,533 | 0,571 | 0,552 | −0,49 s |
+| traseira (`outputs/full`) | 14 | 14 | 9 | 0,643 | 0,643 | 0,643 | 0,00 s |
+
+- O gabarito tem erros conferidos no vídeo: não marca cruzamentos reais aos 77,7 s e 132,5 s e
+  marca aos 871,1 s um carro que parou na linha. As métricas são um limite inferior.
+- O anotador marca a **traseira** (vê o carro por trás), então o gabarito não valida a correção
+  pela frente.
+- Infrações: o único caso limite (865,3 s) fica a 0,00 s (gabarito), +0,14 s (traseira) ou −0,45 s
+  (frente) do vermelho; nenhum é infração com `--red-grace 0.3`.
+- Duas tentativas anteriores foram descartadas: uma marcou a chegada à fila do vermelho, a outra
+  cobriu só 13% do vídeo.
+
+### Pedestres (cam_19, 5 min integrais)
+
+| Linha | Gabarito | Sistema | P / R / F1 (±1 s) | P / R / F1 (±2,5 s) |
+| --- | --- | --- | --- | --- |
+| calcada_direita | 8 | 8 | 0,875 / 0,875 / 0,875 | 1,00 / 1,00 / 1,00 |
+| travessia_rua | 3 | 3 | 0,667 / 0,667 / 0,667 | 1,00 / 1,00 / 1,00 |
+
+Contagem exata; as divergências são de instante dentro de grupos (1,8 s e 2,2 s).
+
+### Não avaliado
+
+Contagem de veículos (Fase 3): não há gabarito de `counting_line` em cena real.

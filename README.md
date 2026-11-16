@@ -214,11 +214,11 @@ outputs/           CSVs e vídeos anotados (não versionados)
 - [ ] Fase 1 — Dados (datasets + configuração das cenas) — ferramenta de marcação pronta
 - [x] Fase 2 — Detecção e rastreamento (FPS de n/s/m medido; falta qualidade com gabarito)
 - [x] Fase 3 — Contagem de veículos (validada só no vídeo de exemplo; falta cena real)
-- [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (falta gabarito e a versão 2 treinada)
-- [x] Fase 5 — Avanço de sinal vermelho (avaliação só na cam_7 dia/amanhecer/chuva; cruzamento pelo instante estimado da frente do veículo; 0 infrações em 40 min; sem CARLA; falta gabarito)
-- [x] Fase 6 — Contagem de pedestres (cam_19: travessias e calçada; falta gabarito)
-- [ ] Fase 7 — Avaliação (ferramentas prontas; falta anotar o gabarito e rodar)
-- [ ] Fase 8 — Escrita e defesa (rascunho em [docs/monografia_rascunho.md](docs/monografia_rascunho.md))
+- [x] Fase 4 — Estado do semáforo, versão 1 por regras HSV (gabarito: 99,85% por quadro, 42/42 trocas; versão 2 treinada fica como trabalho futuro)
+- [x] Fase 5 — Avanço de sinal vermelho (avaliação só na cam_7 dia/amanhecer/chuva; cruzamento pelo instante estimado da frente do veículo; 0 infrações em 40 min; sem CARLA; gabarito: F1 0,55 frente / 0,64 traseira)
+- [x] Fase 6 — Contagem de pedestres (cam_19: travessias e calçada; gabarito: contagem exata nas duas linhas)
+- [x] Fase 7 — Avaliação (semáforo, cruzamentos e pedestres; contagem de veículos sem gabarito) — resultados em [docs/fase7_avaliacao.md](docs/fase7_avaliacao.md)
+- [ ] Fase 8 — Escrita e defesa: artigo concluído ([docs/artigo_cientifico.docx](docs/artigo_cientifico.docx)); falta a defesa (rascunho da monografia em [docs/monografia_rascunho.md](docs/monografia_rascunho.md) ainda com marcadores)
 
 ## Privacidade
 

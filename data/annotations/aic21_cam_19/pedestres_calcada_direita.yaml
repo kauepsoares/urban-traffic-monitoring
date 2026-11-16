@@ -1,0 +1,50 @@
+task: contagem
+scene: aic21_cam_19
+video: data/raw/AIC21_Track1_Vehicle_Counting/Dataset_A/cam_19.mp4
+fps: 10.0
+n_frames: 3000
+line:
+- - 1620
+  - 600
+- - 1919
+  - 600
+line_name: calcada_direita
+annotator: ''
+updated: '2026-11-16T12:37:36'
+light_gt: null
+reviewed:
+- - 1
+  - 2999
+events:
+- frame: 295
+  time_s: 29.5
+  label: pessoa
+  direction: out
+- frame: 933
+  time_s: 93.3
+  label: pessoa
+  direction: in
+- frame: 937
+  time_s: 93.7
+  label: pessoa
+  direction: in
+- frame: 1003
+  time_s: 100.3
+  label: pessoa
+  direction: out
+- frame: 1435
+  time_s: 143.5
+  label: pessoa
+  direction: in
+- frame: 1444
+  time_s: 144.4
+  label: pessoa
+  direction: in
+- frame: 1452
+  time_s: 145.2
+  label: pessoa
+  direction: in
+- frame: 1461
+  time_s: 146.1
+  label: pessoa
+  direction: in

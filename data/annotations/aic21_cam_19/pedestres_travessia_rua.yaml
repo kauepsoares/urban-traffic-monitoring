@@ -1,0 +1,30 @@
+task: contagem
+scene: aic21_cam_19
+video: data/raw/AIC21_Track1_Vehicle_Counting/Dataset_A/cam_19.mp4
+fps: 10.0
+n_frames: 3000
+line:
+- - 1040
+  - 1075
+- - 1120
+  - 180
+line_name: travessia_rua
+annotator: ''
+updated: '2026-11-16T12:38:37'
+light_gt: null
+reviewed:
+- - 1
+  - 2999
+events:
+- frame: 1523
+  time_s: 152.3
+  label: pessoa
+  direction: out
+- frame: 1538
+  time_s: 153.8
+  label: pessoa
+  direction: out
+- frame: 1647
+  time_s: 164.7
+  label: pessoa
+  direction: in

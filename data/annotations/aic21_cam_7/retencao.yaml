@@ -1,0 +1,100 @@
+task: retencao
+scene: aic21_cam_7
+video: data/raw/AIC21_Track1_Vehicle_Counting/Dataset_A/cam_7.mp4
+fps: 8.0
+n_frames: 14400
+line:
+- - 721
+  - 580
+- - 962
+  - 589
+line_name: null
+annotator: ''
+updated: '2026-11-16T12:46:13'
+light_gt: data/annotations/aic21_cam_7/semaforo.yaml
+reviewed:
+- - 1
+  - 30
+- - 619
+  - 1069
+- - 1660
+  - 2111
+- - 2701
+  - 2784
+- - 3742
+  - 3833
+- - 4783
+  - 5013
+- - 5824
+  - 5921
+- - 6866
+  - 7047
+- - 7906
+  - 7990
+- - 8947
+  - 9054
+- - 9988
+  - 10254
+- - 11029
+  - 11338
+- - 12071
+  - 12150
+- - 13112
+  - 13455
+events:
+- frame: 645
+  time_s: 80.625
+  label: carro
+  direction: in
+- frame: 1707
+  time_s: 213.375
+  label: carro
+  direction: in
+- frame: 4798
+  time_s: 599.75
+  label: carro
+  direction: in
+- frame: 4811
+  time_s: 601.375
+  label: carro
+  direction: in
+- frame: 4825
+  time_s: 603.125
+  label: carro
+  direction: in
+- frame: 6922
+  time_s: 865.25
+  label: carro
+  direction: in
+- frame: 6969
+  time_s: 871.125
+  label: carro
+  direction: in
+- frame: 7932
+  time_s: 991.5
+  label: carro
+  direction: in
+- frame: 8965
+  time_s: 1120.625
+  label: carro
+  direction: in
+- frame: 8972
+  time_s: 1121.5
+  label: carro
+  direction: in
+- frame: 10010
+  time_s: 1251.25
+  label: carro
+  direction: in
+- frame: 10029
+  time_s: 1253.625
+  label: carro
+  direction: in
+- frame: 13130
+  time_s: 1641.25
+  label: carro
+  direction: in
+- frame: 13155
+  time_s: 1644.375
+  label: carro
+  direction: in
